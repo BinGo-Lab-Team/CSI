@@ -1,4 +1,4 @@
-﻿pragma ComponentBehavior: Bound
+pragma ComponentBehavior: Bound
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
@@ -13,7 +13,7 @@ ApplicationWindow {
     color: "transparent"
     flags: Qt.Window | Qt.FramelessWindowHint
 
-    // ===== 配置 =====
+    // ===== ���� =====
     readonly property bool maximized: visibility === Window.Maximized
     readonly property bool squareCorners: (visibility === Window.FullScreen) || (visibility === Window.Maximized)
     property int currentTab: 0
@@ -49,8 +49,9 @@ ApplicationWindow {
         }
     }
 
-    // 主题
+    // �� Theme ����������ɫ
     Theme { id: theme }
+
     property color menuGradTop: theme.menuGradTop
     property color menuGradMid: theme.menuGradMid
     property color menuGradBot: theme.menuGradBot
@@ -63,7 +64,6 @@ ApplicationWindow {
         return (s === id || s === "") ? fallback : s;
     }
 
-    // 快捷键
     Shortcut { sequences: [ StandardKey.Close ]; onActivated: win.close() }
     Shortcut { sequences: [ "Alt+F10" ]; onActivated: win._debouncedToggleMaxRestore() }
     Shortcut { sequences: [ "F11" ]; onActivated: win.visibility = (win.visibility === Window.FullScreen) ? Window.AutomaticVisibility : Window.FullScreen }
@@ -79,7 +79,6 @@ ApplicationWindow {
         squareCorners: win.squareCorners
         frameColor: win.palette.window
 
-        // ===== 标题栏（仅动态流动条，去除静态条与底部蓝线） =====
         Rectangle {
             id: titleBar
             height: 56
@@ -87,95 +86,52 @@ ApplicationWindow {
             anchors.right: parent.right
             anchors.top: parent.top
             radius: win.squareCorners ? 0 : win.cornerRadius
-            color: "transparent"
-            clip: true
-
-            // 动态流动条
-            Canvas {
-                id: flowFX
-                anchors.fill: parent
-                antialiasing: false
-                z: -1                    // 放到底层，避免遮挡
-                // 仅声明，不设初值，避免 value-source 冲突
-                property real phase
-                property real bandWidth: width // 与标题栏等宽
-
-                function colors() {
-                    return (theme.gradientColors && theme.gradientColors.length > 0)
-                           ? theme.gradientColors
-                           : [win.menuGradTop, win.menuGradMid, win.menuGradBot]
-                }
-
-                onPaint: {
-                    var ctx = getContext("2d");
-                    var w = width, h = height;
-                    ctx.clearRect(0, 0, w, h);
-
-                    // 以圆角路径裁剪，避免方角覆盖
-                    var rr = (win.squareCorners ? 0 : win.cornerRadius);
-                    ctx.save();
-                    if (rr > 0) {
-                        var x=0, y=0, ww=w, hh=h, r = Math.min(rr, Math.min(ww,hh)/2);
-                        ctx.beginPath();
-                        ctx.moveTo(x+r, y);
-                        ctx.lineTo(x+ww-r, y);
-                        ctx.quadraticCurveTo(x+ww, y, x+ww, y+r);
-                        ctx.lineTo(x+ww, y+hh-r);
-                        ctx.quadraticCurveTo(x+ww, y+hh, x+ww-r, y+hh);
-                        ctx.lineTo(x+r, y+hh);
-                        ctx.quadraticCurveTo(x, y+hh, x, y+hh-r);
-                        ctx.lineTo(x, y+r);
-                        ctx.quadraticCurveTo(x, y, x+r, y);
-                        ctx.closePath();
-                        ctx.clip();
-                    }
-
-                    var bw = bandWidth;
-                    if (bw <= 0) { ctx.restore(); return; }
-
-                    var offset = ((phase % bw) + bw) % bw;
-
-                    var base = colors();
-                    var cols = base.slice(0);
-                    if (cols.length > 0 && cols[0] !== cols[cols.length - 1])
-                        cols.push(cols[0]);
-
-                    function paintStripe(x) {
-                        var xi = Math.floor(x); // 整像素，避免发线
-                        var g = ctx.createLinearGradient(xi, 0, xi + bw, 0);
-                        var n = cols.length;
-                        for (var i = 0; i < n; ++i) {
-                            var t = (n === 1) ? 0.5 : i / (n - 1);
-                            g.addColorStop(t, cols[i]);
-                        }
-                        ctx.fillStyle = g;
-                        ctx.fillRect(xi, 0, bw, h);
-                    }
-
-                    paintStripe(-offset);
-                    paintStripe(-offset + bw);
-                    ctx.restore();
-                }
-                onPhaseChanged: requestPaint()
-                onWidthChanged: { requestPaint(); flowAnim.restart() }
-
-                // 显式动画（唯一 value source）
-                SequentialAnimation {
-                    id: flowAnim
-                    loops: Animation.Infinite
-                    running: win.visibility !== Window.Hidden
-                    NumberAnimation {
-                        target: flowFX; property: "phase"
-                        from: 0; to: flowFX.bandWidth
-                        duration: 9000; easing.type: Easing.Linear
-                    }
-                }
-                Component.onCompleted: flowAnim.start()
+            gradient: Gradient {
+                GradientStop { position: 0.0; color: win.menuGradTop }
+                GradientStop { position: 0.5; color: win.menuGradMid }
+                GradientStop { position: 1.0; color: win.menuGradBot }
             }
 
-            // —— 左侧标题 ——
+            // �Զ���͵���ʾ���
+            Component {
+                id: subtleTip
+                Rectangle {
+                    id: tipRoot
+                    radius: 6
+                    color: "#f2f2f2"
+                    border.color: "#dddddd"
+                    border.width: 1
+                    opacity: 0.0
+                    Behavior on opacity { NumberAnimation { duration: 120 } }
+                    width: Math.max(56, txt.implicitWidth + 12)
+                    height: txt.implicitHeight + 8
+                    Text {
+                        id: txt
+                        anchors.centerIn: parent
+                        text: tipRoot.tipText
+                        font.pixelSize: 11
+                        color: "#555"
+                    }
+                    property string tipText: ""
+                }
+            }
+
+            Rectangle {
+                id: bottomCover
+                anchors.left: parent.left
+                anchors.right: parent.right
+                anchors.bottom: parent.bottom
+                height: win.squareCorners ? 0 : win.cornerRadius
+                color: win.menuGradBot
+                Behavior on height { NumberAnimation { duration: win.durMed; easing.type: Easing.OutCubic } }
+            }
+
+            readonly property string iconMin: "qrc:/res/icon/window/min.svg"
+            readonly property string iconMax: "qrc:/res/icon/window/max.svg"
+            readonly property string iconRes: "qrc:/res/icon/window/restore.svg"
+            readonly property string iconClose: "qrc:/res/icon/window/close.svg"
+
             Label {
-                id: titleText
                 text: win.tr("csi.title", "CSI")
                 anchors.left: parent.left
                 anchors.leftMargin: 14
@@ -183,20 +139,17 @@ ApplicationWindow {
                 color: win.menuTextColor
                 font.pixelSize: 26
                 font.weight: Font.DemiBold
-                z: 1
             }
 
-            // —— 中部导航 ——
             Row {
                 id: navCenter
                 spacing: 10
                 anchors.verticalCenter: parent.verticalCenter
                 anchors.horizontalCenter: parent.horizontalCenter
-                z: 1
 
                 ToolButton {
                     id: tabStart
-                    text: win.tr("csi.tab.start", "启动")
+                    text: win.tr("csi.tab.start", "����")
                     checkable: true
                     checked: win.currentTab === 0
                     padding: 10
@@ -209,11 +162,25 @@ ApplicationWindow {
                     contentItem: Label { text: tabStart.text; font.pixelSize: 15; color: tabStart.checked ? win.menuGradTop : win.menuTextColor; horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter }
                     Accessible.name: tabStart.text
                     Accessible.role: Accessible.Button
+                    Timer {
+                        id: tipTimerStart
+                        interval: 1000; repeat: false
+                        onTriggered: tipLoaderStart.item.opacity = 0.96
+                    }
+                    Loader {
+                        id: tipLoaderStart
+                        anchors.top: parent.bottom; anchors.topMargin: 6
+                        anchors.horizontalCenter: parent.horizontalCenter
+                        active: tabStart.hovered
+                        sourceComponent: subtleTip
+                        onLoaded: { item.tipText = tabStart.text; item.opacity = 0.0; if (tabStart.hovered) tipTimerStart.start() }
+                        onActiveChanged: if (!active) { tipTimerStart.stop(); if (item) item.opacity = 0.0 }
+                    }
                 }
 
                 ToolButton {
                     id: tabSettings
-                    text: win.tr("csi.tab.settings", "设置")
+                    text: win.tr("csi.tab.settings", "����")
                     checkable: true
                     checked: win.currentTab === 1
                     padding: 10
@@ -226,61 +193,85 @@ ApplicationWindow {
                     contentItem: Label { text: tabSettings.text; font.pixelSize: 15; color: tabSettings.checked ? win.menuGradTop : win.menuTextColor; horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter }
                     Accessible.name: tabSettings.text
                     Accessible.role: Accessible.Button
+                    Timer {
+                        id: tipTimerSettings
+                        interval: 1000; repeat: false
+                        onTriggered: tipLoaderSettings.item.opacity = 0.96
+                    }
+                    Loader {
+                        id: tipLoaderSettings
+                        anchors.top: parent.bottom; anchors.topMargin: 6
+                        anchors.horizontalCenter: parent.horizontalCenter
+                        active: tabSettings.hovered
+                        sourceComponent: subtleTip
+                        onLoaded: { item.tipText = tabSettings.text; item.opacity = 0.0; if (tabSettings.hovered) tipTimerSettings.start() }
+                        onActiveChanged: if (!active) { tipTimerSettings.stop(); if (item) item.opacity = 0.0 }
+                    }
                 }
             }
 
-            // —— 右侧窗口控制 ——
             Row {
-                id: rowControls
                 spacing: 6
                 anchors.right: parent.right
                 anchors.rightMargin: 6
                 anchors.verticalCenter: parent.verticalCenter
-                z: 1
-
-                readonly property string iconMin:  "qrc:/res/icon/window/min.svg"
-                readonly property string iconMax:  "qrc:/res/icon/window/max.svg"
-                readonly property string iconRes:  "qrc:/res/icon/window/restore.svg"
-                readonly property string iconClose:"qrc:/res/icon/window/close.svg"
 
                 ToolButton {
                     id: btnMin
                     implicitWidth: 36; implicitHeight: 28
                     onClicked: win.showMinimized()
                     background: Rectangle { radius: 6; color: btnMin.hovered ? win.hoverMask : "transparent" }
-                    contentItem: Image {
-                        source: rowControls.iconMin
-                        fillMode: Image.PreserveAspectFit
-                        anchors.centerIn: parent; width: 14; height: 14
-                    }
-                    Accessible.name: win.tr("csi.window.minimize", "最小化")
+                    contentItem: Image { source: titleBar.iconMin; fillMode: Image.PreserveAspectFit; anchors.centerIn: parent; width: 14; height: 14 }
+                    Accessible.name: win.tr("csi.window.minimize", "��С��")
                     Accessible.role: Accessible.Button
+                    Timer { id: tipTimerMin; interval: 1000; repeat: false; onTriggered: tipLoaderMin.item.opacity = 0.96 }
+                    Loader {
+                        id: tipLoaderMin
+                        anchors.top: parent.bottom; anchors.topMargin: 6
+                        anchors.horizontalCenter: parent.horizontalCenter
+                        active: btnMin.hovered
+                        sourceComponent: subtleTip
+                        onLoaded: { item.tipText = win.tr("csi.window.minimize","��С��"); item.opacity = 0.0; if (btnMin.hovered) tipTimerMin.start() }
+                        onActiveChanged: if (!active) { tipTimerMin.stop(); if (item) item.opacity = 0.0 }
+                    }
                 }
                 ToolButton {
                     id: btnMax
                     implicitWidth: 36; implicitHeight: 28
                     onClicked: win._debouncedToggleMaxRestore()
                     background: Rectangle { radius: 6; color: btnMax.hovered ? win.hoverMask : "transparent" }
-                    contentItem: Image {
-                        source: win.squareCorners ? rowControls.iconRes : rowControls.iconMax
-                        fillMode: Image.PreserveAspectFit
-                        anchors.centerIn: parent; width: 14; height: 14
-                    }
-                    Accessible.name: win.squareCorners ? win.tr("csi.window.restore", "还原") : win.tr("csi.window.maximize", "最大化")
+                    contentItem: Image { source: win.maximized ? titleBar.iconRes : titleBar.iconMax; fillMode: Image.PreserveAspectFit; anchors.centerIn: parent; width: 14; height: 14 }
+                    Accessible.name: win.maximized ? win.tr("csi.window.restore", "��ԭ") : win.tr("csi.window.maximize", "���")
                     Accessible.role: Accessible.Button
+                    Timer { id: tipTimerMax; interval: 1000; repeat: false; onTriggered: tipLoaderMax.item.opacity = 0.96 }
+                    Loader {
+                        id: tipLoaderMax
+                        anchors.top: parent.bottom; anchors.topMargin: 6
+                        anchors.horizontalCenter: parent.horizontalCenter
+                        active: btnMax.hovered
+                        sourceComponent: subtleTip
+                        onLoaded: { item.tipText = win.maximized ? win.tr("csi.window.restore","��ԭ") : win.tr("csi.window.maximize","���"); item.opacity = 0.0; if (btnMax.hovered) tipTimerMax.start() }
+                        onActiveChanged: if (!active) { tipTimerMax.stop(); if (item) item.opacity = 0.0 }
+                    }
                 }
                 ToolButton {
                     id: btnClose
                     implicitWidth: 36; implicitHeight: 28
                     onClicked: win.close()
                     background: Rectangle { radius: 6; color: btnClose.hovered ? "#e5484d" : "transparent" }
-                    contentItem: Image {
-                        source: rowControls.iconClose
-                        fillMode: Image.PreserveAspectFit
-                        anchors.centerIn: parent; width: 14; height: 14
-                    }
-                    Accessible.name: win.tr("csi.window.close", "关闭")
+                    contentItem: Image { source: titleBar.iconClose; fillMode: Image.PreserveAspectFit; anchors.centerIn: parent; width: 14; height: 14 }
+                    Accessible.name: win.tr("csi.window.close", "�ر�")
                     Accessible.role: Accessible.Button
+                    Timer { id: tipTimerClose; interval: 1000; repeat: false; onTriggered: tipLoaderClose.item.opacity = 0.96 }
+                    Loader {
+                        id: tipLoaderClose
+                        anchors.top: parent.bottom; anchors.topMargin: 6
+                        anchors.horizontalCenter: parent.horizontalCenter
+                        active: btnClose.hovered
+                        sourceComponent: subtleTip
+                        onLoaded: { item.tipText = win.tr("csi.window.close","�ر�"); item.opacity = 0.0; if (btnClose.hovered) tipTimerClose.start() }
+                        onActiveChanged: if (!active) { tipTimerClose.stop(); if (item) item.opacity = 0.0 }
+                    }
                 }
             }
 
@@ -288,7 +279,6 @@ ApplicationWindow {
             TapHandler  { gesturePolicy: TapHandler.DragThreshold; onDoubleTapped: win._debouncedToggleMaxRestore() }
         }
 
-        // ===== 内容区 =====
         StackLayout {
             id: stack
             anchors.left: parent.left; anchors.right: parent.right
@@ -310,13 +300,12 @@ ApplicationWindow {
         }
     }
 
-    // ===== 系统级缩放边缘 =====
+    // ��Ե������ű���ԭ�߼�...
     Rectangle { anchors { left: parent.left; right: parent.right; top: parent.top } height: win.hit; color: "transparent"; visible: !win.squareCorners; HoverHandler { cursorShape: Qt.SizeVerCursor } DragHandler { target: null; grabPermissions: PointerHandler.CanTakeOverFromAnything; onActiveChanged: if (active) win.startSystemResize(Qt.TopEdge) } }
     Rectangle { anchors { left: parent.left; right: parent.right; bottom: parent.bottom } height: win.hit; color: "transparent"; visible: !win.squareCorners; HoverHandler { cursorShape: Qt.SizeVerCursor } DragHandler { target: null; grabPermissions: PointerHandler.CanTakeOverFromAnything; onActiveChanged: if (active) win.startSystemResize(Qt.BottomEdge) } }
     Rectangle { anchors { top: parent.top; bottom: parent.bottom; left: parent.left } width: win.hit; color: "transparent"; visible: !win.squareCorners; HoverHandler { cursorShape: Qt.SizeHorCursor } DragHandler { target: null; grabPermissions: PointerHandler.CanTakeOverFromAnything; onActiveChanged: if (active) win.startSystemResize(Qt.LeftEdge) } }
     Rectangle { anchors { top: parent.top; bottom: parent.bottom; right: parent.right } width: win.hit; color: "transparent"; visible: !win.squareCorners; HoverHandler { cursorShape: Qt.SizeHorCursor } DragHandler { target: null; grabPermissions: PointerHandler.CanTakeOverFromAnything; onActiveChanged: if (active) win.startSystemResize(Qt.RightEdge) } }
 
-    /* ===== 四个角 ===== */
     Rectangle { x: 0; y: 0; width: win.cornerHit; height: win.cornerHit; color: "transparent"; visible: !win.squareCorners; HoverHandler { cursorShape: Qt.SizeFDiagCursor } DragHandler { target: null; onActiveChanged: if (active) win.startSystemResize(Qt.TopEdge | Qt.LeftEdge) } }
     Rectangle { anchors.right: parent.right; y: 0; width: win.cornerHit; height: win.cornerHit; color: "transparent"; visible: !win.squareCorners; HoverHandler { cursorShape: Qt.SizeBDiagCursor } DragHandler { target: null; onActiveChanged: if (active) win.startSystemResize(Qt.TopEdge | Qt.RightEdge) } }
     Rectangle { x: 0; anchors.bottom: parent.bottom; width: win.cornerHit; height: win.cornerHit; color: "transparent"; visible: !win.squareCorners; HoverHandler { cursorShape: Qt.SizeBDiagCursor } DragHandler { target: null; onActiveChanged: if (active) win.startSystemResize(Qt.BottomEdge | Qt.LeftEdge) } }

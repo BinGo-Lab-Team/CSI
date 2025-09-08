@@ -1,0 +1,317 @@
+// 202509091724
+
+pragma ComponentBehavior: Bound
+import QtQuick
+import QtQuick.Controls
+import QtQuick.Layouts
+import QtMultimedia
+
+ApplicationWindow {
+    id: win
+    visible: true
+    width: 960
+    height: 640
+    title: qsTrId("csi.title", "CSI")
+    color: "transparent"
+    flags: Qt.Window | Qt.FramelessWindowHint | Qt.WindowMinimizeButtonHint | Qt.WindowMaximizeButtonHint
+
+    // ===== 配置 =====
+    readonly property bool maximized: visibility === Window.Maximized
+    readonly property bool squareCorners: (visibility === Window.FullScreen) || (visibility === Window.Maximized)
+    property int currentTab: 0        // 0=启动页, 1=设置页
+    property int cornerRadius: 12
+    property int inset: 18            // 基准参数：24
+
+    // 高 DPI 命中区（用于缩放热区）
+    readonly property int hit: Math.round(6 * Screen.devicePixelRatio)
+    readonly property int cornerHit: Math.round(10 * Screen.devicePixelRatio)
+
+    // 启动音效&开关
+    property bool enableStartupSound: true
+    MediaPlayer {
+        id: startupPlayer
+        source: "qrc:/res/audio/startup.wav"
+        audioOutput: AudioOutput { id: out; volume: 1.0; muted: false }
+        Component.onCompleted: Qt.callLater(() => { if (win.enableStartupSound) play() })
+        onErrorOccurred: (e,s) => console.warn("[MediaPlayer] error:", e, s)
+    }
+
+    // 菜单条主题（渐变三色 + 文本色 + 悬停遮罩）
+    property color menuGradTop: "#1769ff"
+    property color menuGradMid: "#3b8cff"
+    property color menuGradBot: "#6fb1ff"
+    property color menuTextColor: "white"
+    property color hoverMask: Qt.rgba(0,0,0,0.12)
+    readonly property color invertBase: menuTextColor
+
+    function tr(id, fallback) {
+        var s = qsTrId(id);
+        return (s === id || s === "") ? fallback : s;
+    }
+
+    // ===== 快捷键 =====
+    Shortcut { sequences: [ StandardKey.Close ]; onActivated: win.close() }
+    Shortcut { sequences: [ "Alt+F10" ]; onActivated: win.maximized ? win.showNormal() : win.showMaximized() }
+    Shortcut { sequences: [ "F11" ]; onActivated: win.visibility = (win.visibility === Window.FullScreen) ? Window.AutomaticVisibility : Window.FullScreen }
+    Shortcut { sequences: [ "Escape" ]; onActivated: if (win.visibility === Window.FullScreen) win.showNormal() }
+    Shortcut { sequences: [ "Ctrl+1" ]; onActivated: win.currentTab = 0 }
+    Shortcut { sequences: [ "Ctrl+2" ]; onActivated: win.currentTab = 1 }
+
+    // ===== 九宫格阴影底图 =====
+    BorderImage {
+        anchors.fill: parent
+        source: "qrc:/res/image/sd.png"
+        border { left: inset; top: inset; right: inset; bottom: inset }
+        horizontalTileMode: BorderImage.Stretch
+        verticalTileMode: BorderImage.Stretch
+        visible: !win.squareCorners
+        z: 0
+    }
+
+    // ===== 内容区域（内缩以留出阴影） =====
+    Rectangle {
+        id: frame
+        anchors.fill: parent
+        anchors.margins: inset
+        radius: win.squareCorners ? 0 : win.cornerRadius
+        color: win.palette.window
+        clip: true
+        z: 1
+        Behavior on radius { NumberAnimation { duration: 120; easing.type: Easing.OutCubic } }
+
+        // ===== 顶部导航栏 =====
+        Rectangle {
+            id: titleBar
+            height: 56
+            anchors.left: parent.left
+            anchors.right: parent.right
+            anchors.top: parent.top
+            radius: win.squareCorners ? 0 : win.cornerRadius
+            gradient: Gradient {
+                GradientStop { position: 0.0; color: win.menuGradTop }
+                GradientStop { position: 0.5; color: win.menuGradMid }
+                GradientStop { position: 1.0; color: win.menuGradBot }
+            }
+
+            Rectangle {
+                id: bottomCover
+                anchors.left: parent.left
+                anchors.right: parent.right
+                anchors.bottom: parent.bottom
+                height: win.squareCorners ? 0 : win.cornerRadius
+                color: win.menuGradBot
+                Behavior on height { NumberAnimation { duration: 120; easing.type: Easing.OutCubic } }
+            }
+
+            readonly property string iconMin: "qrc:/res/icon/window-min.svg"
+            readonly property string iconMax: "qrc:/res/icon/window-max.svg"
+            readonly property string iconRes: "qrc:/res/icon/window-restore.svg"
+            readonly property string iconClose: "qrc:/res/icon/window-close.svg"
+
+            // 左侧标题
+            Label {
+                text: win.tr("csi.title", "CSI")
+                anchors.left: parent.left
+                anchors.leftMargin: 14
+                anchors.verticalCenter: parent.verticalCenter
+                color: win.menuTextColor
+                font.pixelSize: 26
+                font.weight: Font.DemiBold
+            }
+
+            // 中置导航
+            Row {
+                id: navCenter
+                spacing: 10
+                anchors.verticalCenter: parent.verticalCenter
+                anchors.horizontalCenter: parent.horizontalCenter
+
+                ToolButton {
+                    id: tabStart
+                    text: win.tr("csi.tab.start", "启动")
+                    checkable: true
+                    checked: win.currentTab === 0
+                    padding: 10
+                    implicitHeight: 36
+                    implicitWidth: Math.max(88, contentItem.implicitWidth + 20)
+                    onClicked: win.currentTab = 0
+                    scale: pressed ? 0.98 : 1.0
+                    Behavior on scale { NumberAnimation { duration: 80; easing.type: Easing.OutCubic } }
+                    background: Rectangle { radius: 8; color: tabStart.checked ? win.invertBase : (tabStart.hovered ? win.hoverMask : "transparent") }
+                    contentItem: Label { text: tabStart.text; font.pixelSize: 15; color: tabStart.checked ? win.menuGradTop : win.menuTextColor; horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter }
+                }
+
+                ToolButton {
+                    id: tabSettings
+                    text: win.tr("csi.tab.settings", "设置")
+                    checkable: true
+                    checked: win.currentTab === 1
+                    padding: 10
+                    implicitHeight: 36
+                    implicitWidth: Math.max(88, contentItem.implicitWidth + 20)
+                    onClicked: win.currentTab = 1
+                    scale: pressed ? 0.98 : 1.0
+                    Behavior on scale { NumberAnimation { duration: 80; easing.type: Easing.OutCubic } }
+                    background: Rectangle { radius: 8; color: tabSettings.checked ? win.invertBase : (tabSettings.hovered ? win.hoverMask : "transparent") }
+                    contentItem: Label { text: tabSettings.text; font.pixelSize: 15; color: tabSettings.checked ? win.menuGradTop : win.menuTextColor; horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter }
+                }
+            }
+
+            // 右侧窗控
+            Row {
+                spacing: 6
+                anchors.right: parent.right
+                anchors.rightMargin: 6
+                anchors.verticalCenter: parent.verticalCenter
+
+                ToolButton {
+                    id: btnMin
+                    implicitWidth: 36
+                    implicitHeight: 28
+                    onClicked: win.showMinimized()
+                    background: Rectangle { radius: 6; color: btnMin.hovered ? win.hoverMask : "transparent" }
+                    contentItem: Image { source: titleBar.iconMin; fillMode: Image.PreserveAspectFit; anchors.centerIn: parent; width: 14; height: 14 }
+                }
+                ToolButton {
+                    id: btnMax
+                    implicitWidth: 36
+                    implicitHeight: 28
+                    onClicked: win.maximized ? win.showNormal() : win.showMaximized()
+                    background: Rectangle { radius: 6; color: btnMax.hovered ? win.hoverMask : "transparent" }
+                    contentItem: Image { source: win.maximized ? titleBar.iconRes : titleBar.iconMax; fillMode: Image.PreserveAspectFit; anchors.centerIn: parent; width: 14; height: 14 }
+                }
+                ToolButton {
+                    id: btnClose
+                    implicitWidth: 36
+                    implicitHeight: 28
+                    onClicked: win.close()
+                    background: Rectangle { radius: 6; color: btnClose.hovered ? "#e5484d" : "transparent" }
+                    contentItem: Image { source: titleBar.iconClose; fillMode: Image.PreserveAspectFit; anchors.centerIn: parent; width: 14; height: 14 }
+                }
+            }
+
+            DragHandler { target: null; onActiveChanged: if (active) win.startSystemMove() }
+            TapHandler  { gesturePolicy: TapHandler.DragThreshold; onDoubleTapped: win.maximized ? win.showNormal() : win.showMaximized() }
+        }
+
+        // ===== 内容区：预加载 StackLayout =====
+        StackLayout {
+            id: stack
+            anchors.left: parent.left
+            anchors.right: parent.right
+            anchors.top: titleBar.bottom
+            anchors.bottom: parent.bottom
+            currentIndex: win.currentTab
+
+            Loader {
+                id: startPage
+                source: "qrc:/res/qml/pages/StartPage.qml"
+                asynchronous: true
+                active: stack.currentIndex === 0
+            }
+            Loader {
+                id: settingsPage
+                source: "qrc:/res/qml/pages/SettingsPage.qml"
+                asynchronous: false
+                active: stack.currentIndex === 1
+            }
+        }
+    }
+
+// ===== 系统级缩放边缘（四条边） =====
+Rectangle {
+    anchors { left: parent.left; right: parent.right; top: parent.top }
+    height: win.hit
+    color: "transparent"
+    visible: !win.squareCorners
+    HoverHandler { cursorShape: Qt.SizeVerCursor }
+    DragHandler {
+        target: null
+        grabPermissions: PointerHandler.CanTakeOverFromAnything
+        onActiveChanged: if (active) win.startSystemResize(Qt.TopEdge)
+    }
+}
+Rectangle {
+    anchors { left: parent.left; right: parent.right; bottom: parent.bottom }
+    height: win.hit
+    color: "transparent"
+    visible: !win.squareCorners
+    HoverHandler { cursorShape: Qt.SizeVerCursor }
+    DragHandler {
+        target: null
+        grabPermissions: PointerHandler.CanTakeOverFromAnything
+        onActiveChanged: if (active) win.startSystemResize(Qt.BottomEdge)
+    }
+}
+Rectangle {
+    anchors { top: parent.top; bottom: parent.bottom; left: parent.left }
+    width: win.hit
+    color: "transparent"
+    visible: !win.squareCorners
+    HoverHandler { cursorShape: Qt.SizeHorCursor }
+    DragHandler {
+        target: null
+        grabPermissions: PointerHandler.CanTakeOverFromAnything
+        onActiveChanged: if (active) win.startSystemResize(Qt.LeftEdge)
+    }
+}
+Rectangle {
+    anchors { top: parent.top; bottom: parent.bottom; right: parent.right }
+    width: win.hit
+    color: "transparent"
+    visible: !win.squareCorners
+    HoverHandler { cursorShape: Qt.SizeHorCursor }
+    DragHandler {
+        target: null
+        grabPermissions: PointerHandler.CanTakeOverFromAnything
+        onActiveChanged: if (active) win.startSystemResize(Qt.RightEdge)
+    }
+}
+
+/* ===== 四个角 ===== */
+Rectangle {
+    x: 0; y: 0
+    width: win.cornerHit; height: win.cornerHit
+    color: "transparent"
+    visible: !win.squareCorners
+    HoverHandler { cursorShape: Qt.SizeFDiagCursor }
+    DragHandler {
+        target: null
+        onActiveChanged: if (active) win.startSystemResize(Qt.TopEdge | Qt.LeftEdge)
+    }
+}
+Rectangle {
+    anchors.right: parent.right; y: 0
+    width: win.cornerHit; height: win.cornerHit
+    color: "transparent"
+    visible: !win.squareCorners
+    HoverHandler { cursorShape: Qt.SizeBDiagCursor }
+    DragHandler {
+        target: null
+        onActiveChanged: if (active) win.startSystemResize(Qt.TopEdge | Qt.RightEdge)
+    }
+}
+Rectangle {
+    x: 0; anchors.bottom: parent.bottom
+    width: win.cornerHit; height: win.cornerHit
+    color: "transparent"
+    visible: !win.squareCorners
+    HoverHandler { cursorShape: Qt.SizeBDiagCursor }
+    DragHandler {
+        target: null
+        onActiveChanged: if (active) win.startSystemResize(Qt.BottomEdge | Qt.LeftEdge)
+    }
+}
+Rectangle {
+    anchors.right: parent.right; anchors.bottom: parent.bottom
+    width: win.cornerHit; height: win.cornerHit
+    color: "transparent"
+    visible: !win.squareCorners
+    HoverHandler { cursorShape: Qt.SizeFDiagCursor }
+    DragHandler {
+        target: null
+        onActiveChanged: if (active) win.startSystemResize(Qt.BottomEdge | Qt.RightEdge)
+    }
+}
+
+}

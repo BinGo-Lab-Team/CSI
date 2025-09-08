@@ -43,8 +43,12 @@ qt_add_qml_module(${PROJECT_NAME}
     URI csi
     VERSION 1.0
     QML_FILES
+        # MAIN
         Main.qml
+        # ELEMENT
         res/qml/element/NiceDialog.qml
+        res/qml/element/ShadowFrame.qml
+        res/qml/element/Theme.qml
     SOURCES 
         includes/backend.h src/backend.cpp
 )
@@ -52,13 +56,25 @@ qt_add_qml_module(${PROJECT_NAME}
 qt_add_resources(${PROJECT_NAME} "respkg"
     PREFIX ""
     FILES 
-        res/icon/icon.png
-        res/icon/wrning.ico
-        res/icon/checked.ico
+        # SVG
+        res/icon/main/construction.svg
+        res/icon/message/checked.svg
+        res/icon/message/error.svg
+        res/icon/message/info.svg
+        res/icon/message/warning.svg
+        res/icon/window/restore.svg
+        res/icon/window/max.svg
+        res/icon/window/min.svg
+        res/icon/window/close.svg
+        # WAV
         res/audio/startup.wav
+        # QML
         res/qml/pages/StartPage.qml
         res/qml/pages/SettingsPage.qml
-        res/font/AiDianFengYaHeiChangTi.ttf
+        # TTF
+        res/font/AiDianFengYaHei.ttf
+        # PNG
+        res/image/shadow@q0.png
 )
 
 set_target_properties(${PROJECT_NAME}

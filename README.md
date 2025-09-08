@@ -12,8 +12,8 @@ A demo project for Qt6, Tend towards a modern framewor.<br>
 emm... 遇到一个麻烦，如果自定义窗口，就无法激活 Windows 原生过渡动画了
 
 ## 贡献与支持
-本项目十分欢迎提出问题与提交合并请求<br>
-有事没事也可以和我说说话
+本项目十分欢迎提交 **问题** 与 **合并请求**<br>
+有事没事也可以和我聊聊天，问问题
 
 联系我：Yan (BINGO-COMPUTER@outlook.com)
 

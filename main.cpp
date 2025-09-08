@@ -16,6 +16,7 @@
 #include <QQuickStyle>
 #include <QFontDatabase>
 #include <QFont>
+#include <QQuickWindow>
 
 // 日志处理函数
 static void fileMessageHandler(QtMsgType type, const QMessageLogContext& ctx, const QString& msg) {
@@ -48,17 +49,28 @@ int main(int argc, char *argv[]) {
     QApplication app(argc, argv);                       // 创建应用程序对象
 
     // 加载字体
-    int id = QFontDatabase::addApplicationFont(":/res/font/AiDianFengYaHeiChangTi.ttf");
+    int id = QFontDatabase::addApplicationFont(":/res/font/AiDianFengYaHei.ttf");
     if (id != -1) {
         QString family = QFontDatabase::applicationFontFamilies(id).at(0);
         QFont font(family);
         font.setPixelSize(14);  // 默认字号
         app.setFont(font);      // 设置为全局字体
-    }
+    }                           // 若加载成功，更改全局默认字体
 
-    app.setWindowIcon(QIcon(":/res/icon/icon.png"));    // 设置窗口图标
-    QQmlApplicationEngine engine;                       // 创建 QML 引擎对象
-    engine.loadFromModule("csi", "Main");               // 加载 qml 入口文件
+    // 设置窗口图标
+    app.setWindowIcon(QIcon(":/res/icon/main/construction.svg"));
+    QQmlApplicationEngine engine;                   // 创建 QML 引擎对象
+    engine.loadFromModule("csi", "Main");           // 加载 qml 入口文件
+
+    if (!engine.rootObjects().isEmpty()) {
+        auto window = qobject_cast<QQuickWindow*>(engine.rootObjects().first());
+        if (window) {
+            // 必须先设置无边框
+            window->setFlags(Qt::FramelessWindowHint | Qt::Window);
+            // 再设置背景透明
+            window->setColor(Qt::transparent);
+        }
+    }
 
     // 打印错误
     QObject::connect(&engine, &QQmlApplicationEngine::warnings,[](const QList<QQmlError>& ws) { for (auto& w : ws) qWarning().noquote() << w.toString(); });

@@ -1,0 +1,49 @@
+// Theme.qml
+pragma ComponentBehavior: Bound
+import QtQuick
+
+QtObject {
+    id: theme
+
+    // ===== 标题栏渐变与文本 =====
+    property color menuGradTop: "#1769ff"
+    property color menuGradMid: "#3b8cff"
+    property color menuGradBot: "#6fb1ff"
+    property color menuTextColor: "white"
+
+    // 交互遮罩（按钮 hover 等）
+    property color hoverMask: Qt.rgba(0, 0, 0, 0.12)
+
+    // 反色基准（保持与你原逻辑一致）
+    property color invertBase: menuTextColor
+
+    // ===== 低调提示（灰底小字） =====
+    property color tooltipBg:    "#f2f2f2"
+    property color tooltipBorder:"#dddddd"
+    property color tooltipText:  "#555555"
+
+    // ===== 可选：主题切换方法 =====
+    function applyLight() {
+        menuGradTop = "#1769ff"
+        menuGradMid = "#3b8cff"
+        menuGradBot = "#6fb1ff"
+        menuTextColor = "white"
+        hoverMask = Qt.rgba(0,0,0,0.12)
+
+        tooltipBg = "#f2f2f2"
+        tooltipBorder = "#dddddd"
+        tooltipText = "#555555"
+    }
+
+    function applyDark() {
+        menuGradTop = "#0e4ecf"
+        menuGradMid = "#2f6fe0"
+        menuGradBot = "#5a94f0"
+        menuTextColor = "white"
+        hoverMask = Qt.rgba(1,1,1,0.10)
+
+        tooltipBg = "#2a2a2a"
+        tooltipBorder = "#3a3a3a"
+        tooltipText = "#d0d0d0"
+    }
+}
