@@ -13,11 +13,10 @@ QtObject {
     readonly property color invertBase: menuTextColor
 
     // 流动条用色：高对比、不过分花
-    // 你可随时增删、换顺序
     property var gradientColors: [
-        "#00e1ff", 
-        "#24c6dc",  
-        "#28c76f",  
-        "#11998e"   
+        "#0D47A1", 
+        "#7B1FA2",  
+        "#F44336",  
+        "#AFB42B"   
     ]
 }

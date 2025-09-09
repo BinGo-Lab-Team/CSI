@@ -79,35 +79,26 @@ ApplicationWindow {
         squareCorners: win.squareCorners
         frameColor: win.palette.window
 
-        // 外层圆角启用 MSAA
-        layer.enabled: true
-        layer.samples: 4
-        layer.smooth: true
-
-        // ===== 标题栏 =====
+        // ===== 标题栏（仅动态流动条，去除静态条与底部蓝线） =====
         Rectangle {
             id: titleBar
             height: 56
             anchors.left: parent.left
             anchors.right: parent.right
             anchors.top: parent.top
-            radius: 0
+            radius: win.squareCorners ? 0 : win.cornerRadius
             color: "transparent"
-            clip: false
+            clip: true
 
-            // —— 无接缝、可无缝循环的流动条 ——
+            // 动态流动条
             Canvas {
                 id: flowFX
                 anchors.fill: parent
-                antialiasing: true
-                renderTarget: Canvas.FramebufferObject
-
+                antialiasing: false
+                z: -1                    // 放到底层，避免遮挡
+                // 仅声明，不设初值，避免 value-source 冲突
                 property real phase
-                property real bandWidth: width
-                property real dpr: Screen.devicePixelRatio
-                onDprChanged: requestPaint()
-                onWidthChanged: { requestPaint(); flowAnim.restart() }
-                onHeightChanged: requestPaint()
+                property real bandWidth: width // 与标题栏等宽
 
                 function colors() {
                     return (theme.gradientColors && theme.gradientColors.length > 0)
@@ -116,22 +107,15 @@ ApplicationWindow {
                 }
 
                 onPaint: {
-                    const ctx = getContext("2d");
-                    const dpr = Screen.devicePixelRatio;
-
-                    // 用设备像素绘制
-                    ctx.resetTransform();
-                    ctx.scale(dpr, dpr);
-
-                    const w = width  / dpr;
-                    const h = height / dpr;
+                    var ctx = getContext("2d");
+                    var w = width, h = height;
                     ctx.clearRect(0, 0, w, h);
 
-                    // 圆角裁剪：略小 0.5，避免与外层重叠
-                    const rr = win.squareCorners ? 0 : Math.max(0, win.cornerRadius - 0.5);
+                    // 以圆角路径裁剪，避免方角覆盖
+                    var rr = (win.squareCorners ? 0 : win.cornerRadius);
+                    ctx.save();
                     if (rr > 0) {
-                        ctx.save();
-                        const x=0, y=0, ww=w, hh=h, r=Math.min(rr, Math.min(ww,hh)/2);
+                        var x=0, y=0, ww=w, hh=h, r = Math.min(rr, Math.min(ww,hh)/2);
                         ctx.beginPath();
                         ctx.moveTo(x+r, y);
                         ctx.lineTo(x+ww-r, y);
@@ -146,44 +130,43 @@ ApplicationWindow {
                         ctx.clip();
                     }
 
-                    const bw = bandWidth;
-                    if (bw <= 0) { if (rr > 0) ctx.restore(); return; }
+                    var bw = bandWidth;
+                    if (bw <= 0) { ctx.restore(); return; }
 
-                    const base = colors();
-                    const cols = base.slice(0);
-                    if (cols.length > 0 && cols[0] !== cols[cols.length - 1]) cols.push(cols[0]);
+                    var offset = ((phase % bw) + bw) % bw;
 
-                    // 计算当前起点，使条带以 bw 为周期平铺
-                    let offset = ((phase % bw) + bw) % bw;
-                    // 从屏幕左侧再往左一个条带开始，确保完全覆盖
-                    let startX = -offset - bw;
+                    var base = colors();
+                    var cols = base.slice(0);
+                    if (cols.length > 0 && cols[0] !== cols[cols.length - 1])
+                        cols.push(cols[0]);
 
-                    // 画到超出右侧即可；对齐整数像素 + 1px 重叠，彻底无缝
-                    while (startX < w + bw) {
-                        const xi = Math.round(startX);   // 像素对齐
-                        const g  = ctx.createLinearGradient(xi, 0, xi + bw, 0);
-                        const n  = cols.length;
-                        for (let i = 0; i < n; ++i) {
-                            const t = (n === 1) ? 0.5 : i / (n - 1);
+                    function paintStripe(x) {
+                        var xi = Math.floor(x); // 整像素，避免发线
+                        var g = ctx.createLinearGradient(xi, 0, xi + bw, 0);
+                        var n = cols.length;
+                        for (var i = 0; i < n; ++i) {
+                            var t = (n === 1) ? 0.5 : i / (n - 1);
                             g.addColorStop(t, cols[i]);
                         }
                         ctx.fillStyle = g;
-                        ctx.fillRect(xi - 1, 0, bw + 2, h); // 左右各重叠 1px
-                        startX += bw;
+                        ctx.fillRect(xi, 0, bw, h);
                     }
 
-                    if (rr > 0) ctx.restore();
+                    paintStripe(-offset);
+                    paintStripe(-offset + bw);
+                    ctx.restore();
                 }
-
                 onPhaseChanged: requestPaint()
+                onWidthChanged: { requestPaint(); flowAnim.restart() }
 
+                // 显式动画（唯一 value source）
                 SequentialAnimation {
                     id: flowAnim
                     loops: Animation.Infinite
                     running: win.visibility !== Window.Hidden
                     NumberAnimation {
                         target: flowFX; property: "phase"
-                        from: 0; to: flowFX.bandWidth      // 精确一个周期即可
+                        from: 0; to: flowFX.bandWidth
                         duration: 9000; easing.type: Easing.Linear
                     }
                 }

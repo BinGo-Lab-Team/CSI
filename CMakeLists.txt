@@ -49,6 +49,7 @@ qt_add_qml_module(${PROJECT_NAME}
         res/qml/element/NiceDialog.qml
         res/qml/element/ShadowFrame.qml
         res/qml/element/Theme.qml
+        res/qml/element/Tooltip.qml
     SOURCES 
         includes/backend.h src/backend.cpp
 )
