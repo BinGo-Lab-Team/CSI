@@ -11,6 +11,11 @@ A demo project for Qt6, Tend towards a modern framewor.<br>
 ## 笔记
 emm... 遇到一个麻烦，如果自定义窗口，就无法激活 Windows 原生过渡动画了
 
+## 推荐方案
+本项目基于 **Qt 6.9.2** 以及 **C++ 20** 构建<br>
+如若使用低版本 Qt，建议使用 **Qt 6.8** 及以上版本
+推荐使用 *Visual Studio 2022* 或 *CLion 2025* 作为 IDE
+
 ## 贡献与支持
 本项目十分欢迎提交 **问题** 与 **合并请求**<br>
 有事没事也可以和我聊聊天，问问题
