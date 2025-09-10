@@ -15,21 +15,21 @@ Item {
     // 缓存父项为动态类型，避免静态类型检查抱怨 QQuickItem 上没有 hovered
     property var _host: parent
 
-    // 兜底的 HoverHandler（即使 _host 不是 Control 也能工作）
+    // HoverHandler（即使 _host 不是 Control 也能工作）
     HoverHandler { id: hh; target: root._host; acceptedDevices: PointerDevice.Mouse }
 
     ToolTip {
         id: tip
-        // 可见性：父项的 hovered 为主；HoverHandler 为辅
+        // 可见性：父项 hovered 为主；HoverHandler 为辅
         visible: (root._host && root._host.hovered === true) || hh.hovered
         delay:   root._delay
         timeout: root._timeout
 
-        // 位置：在父项下方水平居中
+        // 位置：父项下方水平居中
         x: root._host ? (root._host.width  - tip.implicitWidth) / 2 : 0
         y: root._host ? (root._host.height + root._offset) : 0
 
-        // 低调灰底小字
+        // 灰底，小字
         contentItem: Text {
             text: root.text
             font.pixelSize: root._fontPx
