@@ -4,7 +4,7 @@ import QtQuick.Controls
 import QtQuick.Layouts
 import QtMultimedia
 
-// ==== ç¨‹åºçª—å£ ====
+// ==== ³ÌĞò´°¿Ú ====
 ApplicationWindow {
     id: win
     visible: true
@@ -14,7 +14,7 @@ ApplicationWindow {
     color: "transparent"
     flags: Qt.Window | Qt.FramelessWindowHint
 
-    // â€”â€” ç›‘å¬å¯è§æ€§å˜åŒ– â€”â€”
+    // ¡ª¡ª ¼àÌı¿É¼ûĞÔ±ä»¯£¨Ê¹ÓÃ Connections ÏÔÊ½ĞÎ²Î£¬±ÜÃâÒşÊ½×¢ÈëÆúÓÃ¾¯¸æ£© ¡ª¡ª
     Connections {
         target: win
         function onVisibilityChanged(newVis) {
@@ -25,14 +25,14 @@ ApplicationWindow {
         }
     }
 
-    // ===== é…ç½® =====
+    // ===== ÅäÖÃ =====
     readonly property bool maximized: visibility === Window.Maximized
     readonly property bool squareCorners: (visibility === Window.FullScreen) || (visibility === Window.Maximized)
     property int currentTab: 0
     property int cornerRadius: 12
     property int inset: 18
 
-    // â€”â€” è¿˜åŸæ—¶éœ€è¦çš„ä¸Šä¸€æ¬¡éå…¨å±çª—å£å‡ ä½• â€”â€”
+    // ¡ª¡ª »¹Ô­Ê±ĞèÒªµÄÉÏÒ»´Î¡°ÆÕÍ¨´°¿Ú¡±¼¸ºÎ ¡ª¡ª
     property int lastNormalX: 100
     property int lastNormalY: 100
     property int lastNormalWidth: 960
@@ -72,7 +72,7 @@ ApplicationWindow {
     readonly property int hit: Math.round(6 * dpr)
     readonly property int cornerHit: Math.round(10 * dpr)
 
-    // æ’­æ”¾å¯åŠ¨éŸ³ä¹
+    // ²¥·ÅÆô¶¯ÒôÀÖ
     property bool enableStartupSound: true
     MediaPlayer {
         id: startupPlayer
@@ -92,7 +92,7 @@ ApplicationWindow {
         }
     }
 
-    // ==== ä¸»é¢˜ ====
+    // ==== Ö÷Ìâ ====
     Theme {
         id: theme
     }
@@ -108,7 +108,7 @@ ApplicationWindow {
         return (s === id || s === "") ? fallback : s;
     }
 
-    // ==== å¿«æ·é”® ====
+    // ==== ¿ì½İ¼ü ====
     Shortcut {
         sequences: [StandardKey.Close]
         onActivated: win.close()
@@ -135,17 +135,16 @@ ApplicationWindow {
         onActivated: win.currentTab = 1
     }
 
-    // ==== çª—å£ ====
+    // ==== ´°¿Ú ====
     ShadowFrame {
         id: shell
         anchors.fill: parent
-        dpr: Screen.devicePixelRatio
         inset: win.squareCorners ? 0 : win.inset
         cornerRadius: win.cornerRadius
         squareCorners: win.squareCorners
         frameColor: win.palette.window
 
-        // ===== æ ‡é¢˜æ  =====
+        // ===== ±êÌâÀ¸ =====
         Rectangle {
             id: titleBar
             height: 56
@@ -154,25 +153,25 @@ ApplicationWindow {
             anchors.top: parent.top
             radius: win.squareCorners ? 0 : win.cornerRadius
             color: "transparent"
-            z: 3
+            clip: false
 
-            // â€”â€” æ— ç¼æµåŠ¨æ¡ â€”â€”
+            // ¡ª¡ª ÎŞ·ìÁ÷¶¯Ìõ ¡ª¡ª
             Canvas {
                 id: flowFX
                 anchors.fill: parent
+                anchors.margins: -1                  // ÍâÀ© 1px ¸Ç×¡ AA ±ßÔµ
                 antialiasing: true
                 renderTarget: Canvas.FramebufferObject
 
                 property real phase: 0
                 property real bandWidth: width
-                property real dpr: Screen.devicePixelRatio
 
-                onWidthChanged: requestPaint()
+                onWidthChanged: {
+                    requestPaint();
+                    flowAnim.restart();
+                }
                 onHeightChanged: requestPaint()
                 onPhaseChanged: requestPaint()
-
-                // å±å¹• DPR æ”¹å˜æ—¶é‡ç»˜ï¼ˆæ¯”å¦‚æ‹–åˆ°å¦ä¸€å°æ˜¾ç¤ºå™¨ï¼‰
-                onDprChanged: requestPaint()
 
                 function colors() {
                     return (theme.gradientColors && theme.gradientColors.length > 0) ? theme.gradientColors : [win.menuGradTop, win.menuGradMid, win.menuGradBot];
@@ -180,22 +179,54 @@ ApplicationWindow {
 
                 onPaint: {
                     const ctx = getContext("2d");
-                    const dpr = flowFX.dpr;
+                    const dpr = Screen.devicePixelRatio;
 
-                    // è®¾å®šç¼©æ”¾
                     ctx.resetTransform();
                     ctx.scale(dpr, dpr);
 
                     const w = width / dpr;
                     const h = height / dpr;
+                    ctx.clearRect(-2, -2, w + 4, h + 4);
 
-                    // æ¸…å±
-                    ctx.clearRect(0, 0, w, h);
+                    // Ö»×ö¡°ÉÏ±ßÁ½Ô²½Ç¡±
+                    const R0 = win.squareCorners ? 0 : win.cornerRadius;
+                    const bleed = 1 / dpr;                                  // Óë -1 margin ¶ÔÆë
+                    const x = -bleed, y = -bleed;                           // ÍâÀ©¼¸ºÎ
+                    const ww = w + 2 * bleed, hh = h + 2 * bleed;
+                    const r = Math.min(R0 + bleed, Math.min(ww, hh) / 2);
 
-                    // â€”â€” æ¡å¸¦ç»˜åˆ¶ï¼šåƒç´ å¯¹é½ + å·¦å³ Â±1px é‡å ï¼ˆæ— ç¼ï¼‰â€”â€”
+                    if (r > 0) {
+                        ctx.save();
+                        ctx.beginPath();
+
+                        // ´Ó×ó±ßÔµµÄ¡°ÉÏÔ²½ÇÏÂÇĞµã¡±¿ªÊ¼
+                        ctx.moveTo(x, y + r);
+
+                        // ×óÉÏ½Ç£¨¸ü±¥ÂúµÄ¶ş´Î±´Èû¶û£©
+                        ctx.quadraticCurveTo(x, y, x + r, y);
+
+                        // ¶¥±ßµ½ÓÒÉÏ½Ç
+                        ctx.lineTo(x + ww - r, y);
+                        ctx.quadraticCurveTo(x + ww, y, x + ww, y + r);
+
+                        // ÓÒ±ßÖ±ÏÂµ½µ×£¨ÏÂ½ÇÖ±½Ç£©
+                        ctx.lineTo(x + ww, y + hh);
+
+                        // µ×±ßÖ±Ïß»Øµ½×óÏÂ£¨ÏÂ½ÇÖ±½Ç£©
+                        ctx.lineTo(x, y + hh);
+
+                        // ×ó±ßÖ±ÉÏ»Øµ½Æğµã
+                        ctx.lineTo(x, y + r);
+
+                        ctx.closePath();
+                        ctx.clip();
+                    }
+
+                    // ¡ª¡ª Ìõ´ø»æÖÆ£ºÏñËØ¶ÔÆë + ×óÓÒ ¡À1px ÖØµş£¨ÎŞ·ì£©¡ª¡ª
                     const bw = bandWidth;
                     if (bw > 0) {
-                        const cols = colors().slice();
+                        const base = colors();
+                        const cols = base.slice(0);
                         if (cols.length && cols[0] !== cols[cols.length - 1])
                             cols.push(cols[0]);
 
@@ -203,7 +234,7 @@ ApplicationWindow {
                         let startX = -offset - bw;
 
                         while (startX < w + bw) {
-                            const xi = Math.round(startX); // è®¾å¤‡åƒç´ å¯¹é½
+                            const xi = Math.round(startX);                  // Éè±¸ÏñËØ¶ÔÆë
                             const g = ctx.createLinearGradient(xi, 0, xi + bw, 0);
                             const n = cols.length;
                             for (let i = 0; i < n; ++i) {
@@ -211,10 +242,13 @@ ApplicationWindow {
                                 g.addColorStop(t, cols[i]);
                             }
                             ctx.fillStyle = g;
-                            ctx.fillRect(xi - 1, 0, bw + 2, h); // å·¦å³å„é‡å  1px
+                            ctx.fillRect(xi - 1, 0, bw + 2, h);            // ×óÓÒ¸÷ÖØµş 1px
                             startX += bw;
                         }
                     }
+
+                    if (r > 0)
+                        ctx.restore();
                 }
 
                 SequentialAnimation {
@@ -232,7 +266,7 @@ ApplicationWindow {
                 }
             }
 
-            // â€”â€” å·¦ä¾§æ ‡é¢˜ â€”â€”
+            // ¡ª¡ª ×ó²à±êÌâ ¡ª¡ª
             Label {
                 id: titleText
                 text: win.tr("csi.title", "CSI")
@@ -245,7 +279,7 @@ ApplicationWindow {
                 z: 1
             }
 
-            // â€”â€” ä¸­éƒ¨å¯¼èˆª â€”â€”
+            // ¡ª¡ª ÖĞ²¿µ¼º½ ¡ª¡ª
             Row {
                 id: navCenter
                 spacing: 10
@@ -255,7 +289,7 @@ ApplicationWindow {
 
                 ToolButton {
                     id: tabStart
-                    text: win.tr("csi.tab.start", "å¯åŠ¨")
+                    text: win.tr("csi.tab.start", "Æô¶¯")
                     checkable: true
                     checked: win.currentTab === 0
                     padding: 10
@@ -286,7 +320,7 @@ ApplicationWindow {
 
                 ToolButton {
                     id: tabSettings
-                    text: win.tr("csi.tab.settings", "è®¾ç½®")
+                    text: win.tr("csi.tab.settings", "ÉèÖÃ")
                     checkable: true
                     checked: win.currentTab === 1
                     padding: 10
@@ -316,7 +350,7 @@ ApplicationWindow {
                 }
             }
 
-            // â€”â€” å³ä¾§çª—å£æ§åˆ¶ â€”â€”
+            // ¡ª¡ª ÓÒ²à´°¿Ú¿ØÖÆ ¡ª¡ª
             Row {
                 id: rowControls
                 spacing: 6
@@ -346,7 +380,7 @@ ApplicationWindow {
                         width: 14
                         height: 14
                     }
-                    Accessible.name: win.tr("csi.window.minimize", "æœ€å°åŒ–")
+                    Accessible.name: win.tr("csi.window.minimize", "×îĞ¡»¯")
                     Accessible.role: Accessible.Button
                 }
                 ToolButton {
@@ -365,7 +399,7 @@ ApplicationWindow {
                         width: 14
                         height: 14
                     }
-                    Accessible.name: win.squareCorners ? win.tr("csi.window.restore", "è¿˜åŸ") : win.tr("csi.window.maximize", "æœ€å¤§åŒ–")
+                    Accessible.name: win.squareCorners ? win.tr("csi.window.restore", "»¹Ô­") : win.tr("csi.window.maximize", "×î´ó»¯")
                     Accessible.role: Accessible.Button
                 }
                 ToolButton {
@@ -384,7 +418,7 @@ ApplicationWindow {
                         width: 14
                         height: 14
                     }
-                    Accessible.name: win.tr("csi.window.close", "å…³é—­")
+                    Accessible.name: win.tr("csi.window.close", "¹Ø±Õ")
                     Accessible.role: Accessible.Button
                 }
             }
@@ -397,7 +431,7 @@ ApplicationWindow {
                     const p = dragTitle.centroid.scenePosition;
 
                     function relayoutAndDrag() {
-                        // ä»¥é¼ æ ‡ä¸ºé”šç‚¹è®¡ç®—æ–°ä½ç½®ï¼Œå°½é‡å‡å°‘â€œè·³ç‚¹â€æ„Ÿ
+                        // ÒÔÊó±êÎªÃªµã¼ÆËãĞÂÎ»ÖÃ£¬¾¡Á¿¼õÉÙ¡°Ìøµã¡±¸Ğ
                         var w = Math.max(400, lastNormalWidth);
                         var h = Math.max(300, lastNormalHeight);
                         var offX = Math.max(0, Math.min(w, p.x - win.x));
@@ -409,7 +443,7 @@ ApplicationWindow {
                         win.y = ny;
                         win.width = w;
                         win.height = h;
-                        // è¿˜åŸåä¸€å¸§å†è¿›å…¥ç³»ç»Ÿæ‹–åŠ¨ï¼Œæ›´ç¨³
+                        // »¹Ô­ºóÒ»Ö¡ÔÙ½øÈëÏµÍ³ÍÏ¶¯£¬¸üÎÈ
                         Qt.callLater(() => {
                             if (flowAnim)
                                 flowAnim.running = true;
@@ -418,7 +452,7 @@ ApplicationWindow {
                     }
 
                     if (win.visibility === Window.FullScreen || win.maximized) {
-                        // å…ˆæš‚åœæ ‡é¢˜æ åŠ¨ç”»ï¼Œå‡å°é‡ç»˜å‹åŠ›
+                        // ÏÈÔİÍ£±êÌâÀ¸¶¯»­£¬¼õĞ¡ÖØ»æÑ¹Á¦
                         if (flowAnim)
                             flowAnim.running = false;
                         win.showNormal();
@@ -434,7 +468,7 @@ ApplicationWindow {
             }
         }
 
-        // ===== å†…å®¹åŒº =====
+        // ===== ÄÚÈİÇø =====
         StackLayout {
             id: stack
             anchors.left: parent.left
@@ -458,7 +492,7 @@ ApplicationWindow {
         }
     }
 
-    // ===== ç¼©æ”¾è¾¹ç¼˜ =====
+    // ===== Ëõ·Å±ßÔµ =====
     Rectangle {
         anchors {
             left: parent.left
@@ -536,7 +570,7 @@ ApplicationWindow {
         }
     }
 
-    // ===== å››ä¸ªè§’ =====
+    // ===== ËÄ¸ö½Ç =====
     Rectangle {
         x: 0
         y: 0

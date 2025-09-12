@@ -1,0 +1,74 @@
+﻿pragma ComponentBehavior: Bound
+import QtQuick
+import Qt5Compat.GraphicalEffects
+import QtQuick.Effects
+
+Item {
+    id: root
+
+    // ==== API ====
+    property int  inset: 18
+    property int  cornerRadius: 12
+    property bool squareCorners: false
+    property color frameColor: "white"
+    property bool shadowVisibleWhenMaximized: false
+
+    // 默认插槽：外部内容插进 frame
+    default property alias content: frame.data
+
+    // 分层渲染
+    layer.enabled: true
+    layer.smooth: true
+    layer.samples: 4
+
+    implicitWidth: 400
+    implicitHeight: 300
+
+    readonly property int _safeInset: Math.min(inset, Math.floor(Math.min(width, height)/2))
+    readonly property bool wantShadow: (!root.squareCorners) || root.shadowVisibleWhenMaximized
+
+    // —— 阴影九宫格 ——
+    BorderImage {
+        id: nineShadow
+        anchors.fill: parent
+        source: "qrc:/res/image/shadow@q0.png"
+        border {
+            left: root._safeInset
+            top: root._safeInset
+            right: root._safeInset
+            bottom: root._safeInset
+        }
+        horizontalTileMode: BorderImage.Stretch
+        verticalTileMode: BorderImage.Stretch
+        smooth: true
+        cache: true
+        asynchronous: false
+        visible: opacity > 0.001
+        opacity: root.wantShadow ? 1 : 0
+        Behavior on opacity { NumberAnimation { duration: 120; easing.type: Easing.OutCubic } }
+        z: 0
+    }
+
+    // —— 内容容器：背景 + 圆角裁切 via OpacityMask ——
+    Rectangle {
+        id: frame
+        anchors.fill: parent
+        anchors.margins: root._safeInset
+        color: root.frameColor
+        z: 1
+
+        // 开启分层并加遮罩
+        layer.enabled: true
+        layer.smooth: true
+        layer.samples: 4
+        layer.effect: OpacityMask {
+            maskSource: Rectangle {
+                width: frame.width
+                height: frame.height
+                radius: root.squareCorners ? 0 : root.cornerRadius
+                visible: false     // 只当遮罩，不渲染出来
+                color: "black"     // 提供不透明度给遮罩
+            }
+        }
+    }
+}

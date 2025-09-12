@@ -1,4 +1,4 @@
-pragma ComponentBehavior: Bound 
+pragma ComponentBehavior: Bound
 import QtQuick
 import Qt5Compat.GraphicalEffects
 
@@ -14,54 +14,42 @@ Item {
 
     // 默认插槽：外部内容插进 frame
     default property alias content: frame.data
+    property real dpr: 3
 
-    // === HiDPI 控制 ===
-    property real dpr: 1
-
-    // 用整数 DPR 进行离屏渲染，再下采样到真实 DPR，提升非整数缩放下的锐度
-    property real texDpr: Math.max(dpr, Math.ceil(dpr))
-
-    // 分层渲染（root 开层时必须给 textureSize）
+    // 分层渲染
     layer.enabled: true
+    layer.smooth: true
     layer.samples: 4
-    // 只有当 texDpr > dpr 需要下采样时才开平滑
-    layer.smooth: root.texDpr > root.dpr
-    layer.textureSize: Qt.size(
-        Math.round(width  * root.texDpr),
-        Math.round(height * root.texDpr)
-    )
 
-    // 隐式尺寸
     implicitWidth: 400
     implicitHeight: 300
 
-    // 避免极小尺寸时 inset < 1
     readonly property int _safeInset: Math.min(inset, Math.floor(Math.min(width, height)/2))
     readonly property bool wantShadow: (!root.squareCorners) || root.shadowVisibleWhenMaximized
 
-    // 单张图片的 九宫格PNG 阴影
+    // —— 阴影九宫格 ——
     BorderImage {
         id: nineShadow
         anchors.fill: parent
         source: "qrc:/res/image/shadow@q0.png"
-        border { left: root._safeInset; top: root._safeInset; right: root._safeInset; bottom: root._safeInset }
+        border {
+            left: root._safeInset
+            top: root._safeInset
+            right: root._safeInset
+            bottom: root._safeInset
+        }
         horizontalTileMode: BorderImage.Stretch
         verticalTileMode: BorderImage.Stretch
         smooth: true
         cache: true
         asynchronous: false
-
-        // 透明度动画避免闪断
         visible: opacity > 0.001
         opacity: root.wantShadow ? 1 : 0
         Behavior on opacity { NumberAnimation { duration: 120; easing.type: Easing.OutCubic } }
-
         z: 0
-        onStatusChanged: if (status !== BorderImage.Ready)
-            console.warn("[ShadowFrame] shadow status:", status, "size:", width, height)
     }
 
-    // 内容承载框，未来需要考虑替换 OpacityMask（背景 + 圆角遮罩 OpacityMask）
+    // —— 内容容器 ——
     Rectangle {
         id: frame
         anchors.fill: parent
@@ -69,33 +57,24 @@ Item {
         color: root.frameColor
         z: 1
 
-        // 先渲到纹理，用 texDpr（整数 DPR）开大，再下采样
+        // 开启分层并加遮罩
         layer.enabled: true
+        layer.smooth: false
         layer.samples: 4
-        layer.smooth: root.texDpr > root.dpr
-        layer.textureSize: Qt.size(
-            Math.round(width  * root.texDpr),
-            Math.round(height * root.texDpr)
-        )
+        layer.textureSize: Qt.size(Math.round(width * root.dpr), Math.round(height * root.dpr))
 
-        // 圆角遮罩（遮罩自身用 ShaderEffectSource 提供同分辨率纹理）
         layer.effect: OpacityMask {
             maskSource: ShaderEffectSource {
                 id: maskTex
-                live: true
-                hideSource: true
                 sourceItem: Rectangle {
                     id: maskRect
                     width: frame.width
                     height: frame.height
                     radius: root.squareCorners ? 0 : root.cornerRadius
-                    color: "black" // 颜色无所谓，仅用于填充，默认 alpha=0 
+                    color: "black" 
                 }
-                textureSize: Qt.size(
-                    Math.round(maskRect.width  * root.texDpr),
-                    Math.round(maskRect.height * root.texDpr)
-                )
             }
         }
     }
+
 }
