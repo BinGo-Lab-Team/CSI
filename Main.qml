@@ -1,3 +1,4 @@
+// Main.qml - 前端入口
 pragma ComponentBehavior: Bound
 import QtQuick
 import QtQuick.Controls
@@ -7,20 +8,17 @@ import QtMultimedia
 // ==== 程序窗口 ====
 ApplicationWindow {
     id: win
-    visible: true
+    visible: true   // 窗口可见
     width: 960
     height: 640
     title: win.tr("csi.title", "CSI")
     color: "transparent"
     flags: Qt.Window | Qt.FramelessWindowHint
 
-    // —— 监听可见性变化 ——
+    // 监听可见性变化
     Connections {
         target: win
         function onVisibilityChanged(newVis) {
-            if ((win._lastVis === Window.AutomaticVisibility || win._lastVis === Window.Windowed) && (newVis === Window.Maximized || newVis === Window.FullScreen)) {
-                win._recordNormalGeom();
-            }
             win._lastVis = newVis;
         }
     }
@@ -32,14 +30,20 @@ ApplicationWindow {
     property int cornerRadius: 12
     property int inset: 18
 
-    // —— 还原时需要的上一次非全屏窗口几何 ——
+    // 用于还原时的最小尺寸下限，避免跳点
+    property int minW: 400
+    property int minH: 300
+
+    // 还原时需要的上一次非全屏窗口几何（持续采样）
     property int lastNormalX: 100
     property int lastNormalY: 100
     property int lastNormalWidth: 960
     property int lastNormalHeight: 640
     property int _lastVis: Window.AutomaticVisibility
-    function _recordNormalGeom() {
-        if (visibility === Window.AutomaticVisibility || visibility === Window.Windowed) {
+
+    // 只要处于 Windowed/AutomaticVisibility，就持续维护 lastNormal
+    function _maybeRecordIfNormal() {
+        if (win.visibility === Window.AutomaticVisibility || win.visibility === Window.Windowed) {
             lastNormalX = win.x;
             lastNormalY = win.y;
             lastNormalWidth = win.width;
@@ -47,27 +51,49 @@ ApplicationWindow {
         }
     }
 
+    // 绑定几何变化，自动记录
+    onXChanged: _maybeRecordIfNormal()
+    onYChanged: _maybeRecordIfNormal()
+    onWidthChanged: _maybeRecordIfNormal()
+    onHeightChanged: _maybeRecordIfNormal()
+
+    // 还原到上一次正常几何
+    function restoreFromLastNormal() {
+        const nx = Math.round(lastNormalX);
+        const ny = Math.round(lastNormalY);
+        const nw = Math.max(minW, Math.round(lastNormalWidth));
+        const nh = Math.max(minH, Math.round(lastNormalHeight));
+
+        win.showNormal();
+        Qt.callLater(() => {
+            win.x = nx;
+            win.y = ny;
+            win.width = nw;
+            win.height = nh;
+        });
+    }
+
     readonly property int durFast: 80
     readonly property int durMed: 120
     readonly property int durSlow: 160
     readonly property int debounceMs: 200
     property double _lastToggleTS: 0
-    function _now() {
-        return Date.now();
-    }
+
+    // 最大化 <-> 还原（含防抖），不再依赖切换瞬间记录
     function _debouncedToggleMaxRestore() {
-        var t = _now();
+        const t = Date.now();
         if (t - _lastToggleTS < debounceMs)
             return;
         _lastToggleTS = t;
-        if (!maximized) {
-            _recordNormalGeom();
-            win.showMaximized();
+
+        if (win.visibility === Window.Maximized || win.visibility === Window.FullScreen) {
+            restoreFromLastNormal();
         } else {
-            win.showNormal();
+            win.showMaximized();
         }
     }
 
+    // 获取当前 DPR
     readonly property real dpr: Screen.devicePixelRatio
     readonly property int hit: Math.round(6 * dpr)
     readonly property int cornerHit: Math.round(10 * dpr)
@@ -76,7 +102,7 @@ ApplicationWindow {
     property bool enableStartupSound: true
     MediaPlayer {
         id: startupPlayer
-        source: "qrc:/res/audio/startup.wav"
+        source: "qrc:/res/audio/startup.ogg"
         audioOutput: AudioOutput {
             id: out
             volume: 1.0
@@ -108,6 +134,15 @@ ApplicationWindow {
         return (s === id || s === "") ? fallback : s;
     }
 
+    function toggleFullscreen() {
+        if (win.visibility === Window.FullScreen) {
+            win.showNormal();
+        } else {
+            win.showFullScreen();
+        }
+    }
+
+
     // ==== 快捷键 ====
     Shortcut {
         sequences: [StandardKey.Close]
@@ -119,7 +154,7 @@ ApplicationWindow {
     }
     Shortcut {
         sequences: ["F11"]
-        onActivated: win.visibility = (win.visibility === Window.FullScreen) ? Window.AutomaticVisibility : Window.FullScreen
+        onActivated: win.toggleFullscreen()
     }
     Shortcut {
         sequences: ["Escape"]
@@ -156,23 +191,47 @@ ApplicationWindow {
             color: "transparent"
             z: 3
 
-            // —— 无缝流动条 ——
+            // 流动标题栏背景
             Canvas {
                 id: flowFX
                 anchors.fill: parent
-                antialiasing: true
                 renderTarget: Canvas.FramebufferObject
+                renderStrategy: Canvas.Immediate
+                property bool running: true
 
-                property real phase: 0
                 property real bandWidth: width
+                property real pxPerSecond: 120
                 property real dpr: Screen.devicePixelRatio
 
+                property real _t0: 0
+                function _nowSec() {
+                    return Date.now() / 1000.0;
+                }
+
+                Timer {
+                    id: raf
+                    interval: 33
+                    repeat: true
+                    running: flowFX.running && flowFX.visible && (win.visibility !== Window.Minimized && win.visibility !== Window.Hidden)
+                    onTriggered: flowFX.requestPaint()
+                }
+
+                Component.onCompleted: {
+                    _t0 = _nowSec();
+                    requestPaint();
+                    raf.start();
+                }
+
+                onVisibleChanged: requestPaint()
                 onWidthChanged: requestPaint()
                 onHeightChanged: requestPaint()
-                onPhaseChanged: requestPaint()
-
-                // 屏幕 DPR 改变时重绘（比如拖到另一台显示器）
                 onDprChanged: requestPaint()
+                Connections {
+                    target: win
+                    function onVisibilityChanged() {
+                        flowFX.requestPaint();
+                    }
+                }
 
                 function colors() {
                     return (theme.gradientColors && theme.gradientColors.length > 0) ? theme.gradientColors : [win.menuGradTop, win.menuGradMid, win.menuGradBot];
@@ -180,56 +239,41 @@ ApplicationWindow {
 
                 onPaint: {
                     const ctx = getContext("2d");
-                    const dpr = flowFX.dpr;
-
-                    // 设定缩放
+                    const dprNow = flowFX.dpr;
                     ctx.resetTransform();
-                    ctx.scale(dpr, dpr);
+                    ctx.scale(dprNow, dprNow);
 
-                    const w = width / dpr;
-                    const h = height / dpr;
-
-                    // 清屏
+                    const w = width / dprNow;
+                    const h = height / dprNow;
                     ctx.clearRect(0, 0, w, h);
 
-                    // —— 条带绘制：像素对齐 + 左右 ±1px 重叠（无缝）——
-                    const bw = bandWidth;
-                    if (bw > 0) {
-                        const cols = colors().slice();
-                        if (cols.length && cols[0] !== cols[cols.length - 1])
-                            cols.push(cols[0]);
+                    const cols = colors().slice();
+                    if (cols.length && cols[0] !== cols[cols.length - 1])
+                        cols.push(cols[0]);
 
-                        let offset = ((phase % bw) + bw) % bw;
-                        let startX = -offset - bw;
+                    const bw = Math.max(1, bandWidth);
+                    const elapsed = _nowSec() - _t0;
+                    const offsetPx = (elapsed * pxPerSecond) % bw;
 
-                        while (startX < w + bw) {
-                            const xi = Math.round(startX); // 设备像素对齐
-                            const g = ctx.createLinearGradient(xi, 0, xi + bw, 0);
-                            const n = cols.length;
-                            for (let i = 0; i < n; ++i) {
-                                const t = (n === 1) ? 0.5 : i / (n - 1);
-                                g.addColorStop(t, cols[i]);
-                            }
-                            ctx.fillStyle = g;
-                            ctx.fillRect(xi - 1, 0, bw + 2, h); // 左右各重叠 1px
-                            startX += bw;
+                    let startX = -offsetPx - bw;
+                    while (startX < w + bw) {
+                        const xi = Math.round(startX);
+                        const g = ctx.createLinearGradient(xi, 0, xi + bw, 0);
+                        const n = cols.length;
+                        for (let i = 0; i < n; ++i) {
+                            const t = (n === 1) ? 0.5 : i / (n - 1);
+                            g.addColorStop(t, cols[i]);
                         }
+                        ctx.fillStyle = g;
+                        ctx.fillRect(xi - 1, 0, bw + 2, h);
+                        startX += bw;
                     }
                 }
-
-                SequentialAnimation {
-                    id: flowAnim
-                    loops: Animation.Infinite
-                    running: win.visibility !== Window.Hidden
-                    NumberAnimation {
-                        target: flowFX
-                        property: "phase"
-                        from: 0
-                        to: flowFX.bandWidth
-                        duration: 9000
-                        easing.type: Easing.Linear
-                    }
-                }
+            }
+            // 控制标题栏启停
+            QtObject {
+                id: flowAnim
+                property alias running: flowFX.running
             }
 
             // —— 左侧标题 ——
@@ -280,8 +324,6 @@ ApplicationWindow {
                         horizontalAlignment: Text.AlignHCenter
                         verticalAlignment: Text.AlignVCenter
                     }
-                    Accessible.name: tabStart.text
-                    Accessible.role: Accessible.Button
                 }
 
                 ToolButton {
@@ -311,19 +353,17 @@ ApplicationWindow {
                         horizontalAlignment: Text.AlignHCenter
                         verticalAlignment: Text.AlignVCenter
                     }
-                    Accessible.name: tabSettings.text
-                    Accessible.role: Accessible.Button
                 }
             }
 
-            // —— 右侧窗口控制 ——
+            // —— 右上角窗口控制 ——
             Row {
                 id: rowControls
                 spacing: 6
                 anchors.right: parent.right
                 anchors.rightMargin: 6
                 anchors.verticalCenter: parent.verticalCenter
-                z: 1
+                z: 0
 
                 readonly property string iconMin: "qrc:/res/icon/window/min.svg"
                 readonly property string iconMax: "qrc:/res/icon/window/max.svg"
@@ -346,8 +386,6 @@ ApplicationWindow {
                         width: 14
                         height: 14
                     }
-                    Accessible.name: win.tr("csi.window.minimize", "最小化")
-                    Accessible.role: Accessible.Button
                 }
                 ToolButton {
                     id: btnMax
@@ -365,8 +403,6 @@ ApplicationWindow {
                         width: 14
                         height: 14
                     }
-                    Accessible.name: win.squareCorners ? win.tr("csi.window.restore", "还原") : win.tr("csi.window.maximize", "最大化")
-                    Accessible.role: Accessible.Button
                 }
                 ToolButton {
                     id: btnClose
@@ -384,11 +420,10 @@ ApplicationWindow {
                         width: 14
                         height: 14
                     }
-                    Accessible.name: win.tr("csi.window.close", "关闭")
-                    Accessible.role: Accessible.Button
                 }
             }
 
+            // 全屏时鼠标拖动还原
             DragHandler {
                 id: dragTitle
                 target: null
@@ -397,9 +432,9 @@ ApplicationWindow {
                     const p = dragTitle.centroid.scenePosition;
 
                     function relayoutAndDrag() {
-                        // 以鼠标为锚点计算新位置，尽量减少“跳点”感
-                        var w = Math.max(400, lastNormalWidth);
-                        var h = Math.max(300, lastNormalHeight);
+                        // 以鼠标为锚点计算新位置，减少跳闪
+                        var w = Math.max(win.minW, lastNormalWidth);
+                        var h = Math.max(win.minH, lastNormalHeight);
                         var offX = Math.max(0, Math.min(w, p.x - win.x));
                         var offY = Math.max(0, Math.min(h, p.y - win.y));
                         var nx = Math.round(p.x - offX);
@@ -409,7 +444,7 @@ ApplicationWindow {
                         win.y = ny;
                         win.width = w;
                         win.height = h;
-                        // 还原后一帧再进入系统拖动，更稳
+                        // 还原后等待一帧再进入拖动
                         Qt.callLater(() => {
                             if (flowAnim)
                                 flowAnim.running = true;
@@ -418,7 +453,7 @@ ApplicationWindow {
                     }
 
                     if (win.visibility === Window.FullScreen || win.maximized) {
-                        // 先暂停标题栏动画，减小重绘压力
+                        // 处于后台时暂停标题栏动画，减少开销
                         if (flowAnim)
                             flowAnim.running = false;
                         win.showNormal();

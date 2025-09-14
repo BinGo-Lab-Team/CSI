@@ -1,5 +1,4 @@
-﻿#include "backend.h"
-// 标准库
+﻿// main.cpp - 程序入口
 #include <QApplication>
 #include <QQmlApplicationEngine>
 #include <QLoggingCategory>
@@ -7,18 +6,17 @@
 #include <QTextStream>
 #include <QDateTime>
 #include <QMutex>
-#include <QDir>
-#include <QThread>
 #include <QIcon>
-#include <QDebug>
 #include <QDirIterator>
 #include <QMessageBox>
 #include <QQuickStyle>
 #include <QFontDatabase>
 #include <QFont>
 #include <QQuickWindow>
+// ==== 自定义头文件 ====
+#include "backend.h"
 
-// 日志处理函数
+// ==== 日志处理函数 ====
 static void fileMessageHandler(QtMsgType type, const QMessageLogContext& ctx, const QString& msg) {
 	static QFile file("logs/app.log");
 	static QMutex mtx;
@@ -41,13 +39,12 @@ static void fileMessageHandler(QtMsgType type, const QMessageLogContext& ctx, co
 	out.flush();
 }
 
+// ==== 主函数 ====
 int main(int argc, char* argv[]) {
 
 	// 初始化
 	qInstallMessageHandler(fileMessageHandler);         // 接管日志系统
 	QQuickStyle::setStyle("Fusion");                    // 设置默认样式
-
-	QGuiApplication::setAttribute(Qt::AA_EnableHighDpiScaling);
 	QApplication app(argc, argv);                       // 创建应用程序对象
 
 	// 加载字体
@@ -63,16 +60,6 @@ int main(int argc, char* argv[]) {
 	app.setWindowIcon(QIcon(":/res/icon/main/construction.svg"));
 	QQmlApplicationEngine engine;                   // 创建 QML 引擎对象
 	engine.loadFromModule("csi", "Main");           // 加载 qml 入口文件
-
-	if (!engine.rootObjects().isEmpty()) {
-		auto window = qobject_cast<QQuickWindow*>(engine.rootObjects().first());
-		if (window) {
-			// 必须先设置无边框
-			window->setFlags(Qt::FramelessWindowHint | Qt::Window);
-			// 再设置背景透明
-			window->setColor(Qt::transparent);
-		}
-	}
 
 	// 打印错误
 	QObject::connect(&engine, &QQmlApplicationEngine::warnings, [](const QList<QQmlError>& ws) { for (auto& w : ws) qWarning().noquote() << w.toString(); });

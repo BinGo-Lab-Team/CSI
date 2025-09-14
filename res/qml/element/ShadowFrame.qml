@@ -1,101 +1,122 @@
-pragma ComponentBehavior: Bound 
+ï»¿// ShadowFrame.qml - æ ¸å¿ƒè‡ªç»˜çª—å£ç»„ä»¶
+pragma ComponentBehavior: Bound
 import QtQuick
 import Qt5Compat.GraphicalEffects
 
 Item {
     id: root
 
-    // ==== API ====
+    // ==== å¯¹å¤– API ====
     property int  inset: 18
     property int  cornerRadius: 12
-    property bool squareCorners: false
+    property bool squareCorners: false                  // å…¨å±/æœ€å¤§åŒ–æ—¶è¯·ç½® true
     property color frameColor: "white"
     property bool shadowVisibleWhenMaximized: false
 
-    // Ä¬ÈÏ²å²Û£ºÍâ²¿ÄÚÈİ²å½ø frame
+    // ä¼šè¢«åœ†è§’è£åˆ‡çš„å†…å®¹æ§½
     default property alias content: frame.data
+    // ä¸è£åˆ‡çš„é¡¶å±‚å åŠ æ§½ï¼ˆæ”¾ Popup/è’™ç‰ˆ/Toastï¼‰
+    property alias overlay: overlayLayer.data
 
-    // === HiDPI ¿ØÖÆ ===
+    // ==== HiDPI ====
     property real dpr: 1
-
-    // ÓÃÕûÊı DPR ½øĞĞÀëÆÁäÖÈ¾£¬ÔÙÏÂ²ÉÑùµ½ÕæÊµ DPR£¬ÌáÉı·ÇÕûÊıËõ·ÅÏÂµÄÈñ¶È
     property real texDpr: Math.max(dpr, Math.ceil(dpr))
 
-    // ·Ö²ãäÖÈ¾£¨root ¿ª²ãÊ±±ØĞë¸ø textureSize£©
-    layer.enabled: true
+    // æ ¹å±‚åˆ†å±‚ï¼šä»…åœ¨â€œéå…¨å±/éæœ€å¤§åŒ–â€ä¸”éœ€è¦é˜´å½±/ä¸‹é‡‡æ ·æ—¶å¼€å¯
+    // å…¨å±/æœ€å¤§åŒ–ï¼ˆsquareCorners=trueï¼‰æ—¶å¼ºåˆ¶å…³é—­ï¼Œé¿å…åˆ‡æ¢ç¬é—´é€æ˜
+    layer.enabled: (!root.squareCorners) && ((root.texDpr > root.dpr) || root.wantShadow)
     layer.samples: 4
-    // Ö»ÓĞµ± texDpr > dpr ĞèÒªÏÂ²ÉÑùÊ±²Å¿ªÆ½»¬
     layer.smooth: root.texDpr > root.dpr
     layer.textureSize: Qt.size(
-        Math.round(width  * root.texDpr),
-        Math.round(height * root.texDpr)
+        Math.max(1, Math.round(width  * root.texDpr)),
+        Math.max(1, Math.round(height * root.texDpr))
     )
 
-    // ÒşÊ½³ß´ç
+    // éšå¼å°ºå¯¸
     implicitWidth: 400
     implicitHeight: 300
 
-    // ±ÜÃâ¼«Ğ¡³ß´çÊ± inset < 1
-    readonly property int _safeInset: Math.min(inset, Math.floor(Math.min(width, height)/2))
+    // è®¡ç®—å±æ€§
+    readonly property int  _safeInset: Math.min(inset, Math.floor(Math.min(width, height)/2))
     readonly property bool wantShadow: (!root.squareCorners) || root.shadowVisibleWhenMaximized
 
-    // µ¥ÕÅÍ¼Æ¬µÄ ¾Å¹¬¸ñPNG ÒõÓ°
+    // ===== å¤–éƒ¨é˜´å½±ï¼ˆä¹å®«æ ¼ PNGï¼‰=====
     BorderImage {
         id: nineShadow
         anchors.fill: parent
         source: "qrc:/res/image/shadow@q0.png"
-        border { left: root._safeInset; top: root._safeInset; right: root._safeInset; bottom: root._safeInset }
+        border {
+            left:   root._safeInset
+            top:    root._safeInset
+            right:  root._safeInset
+            bottom: root._safeInset
+        }
         horizontalTileMode: BorderImage.Stretch
         verticalTileMode: BorderImage.Stretch
         smooth: true
         cache: true
         asynchronous: false
 
-        // Í¸Ã÷¶È¶¯»­±ÜÃâÉÁ¶Ï
+        // æœ€å¤§åŒ–/å…¨å±ä¸”ä¸éœ€è¦é˜´å½±æ—¶æ·¡å‡º
         visible: opacity > 0.001
         opacity: root.wantShadow ? 1 : 0
         Behavior on opacity { NumberAnimation { duration: 120; easing.type: Easing.OutCubic } }
 
         z: 0
-        onStatusChanged: if (status !== BorderImage.Ready)
-            console.warn("[ShadowFrame] shadow status:", status, "size:", width, height)
     }
 
-    // ÄÚÈİ³ĞÔØ¿ò£¬Î´À´ĞèÒª¿¼ÂÇÌæ»» OpacityMask£¨±³¾° + Ô²½ÇÕÚÕÖ OpacityMask£©
+    // ===== å†…å®¹æ‰¿è½½æ¡†ï¼ˆåœ†è§’è£åˆ‡åŒºåŸŸï¼‰=====
     Rectangle {
         id: frame
         anchors.fill: parent
-        anchors.margins: root._safeInset
-        color: root.frameColor
+        // å…¨å±/æœ€å¤§åŒ–ä¸”ä¸å±•ç¤ºé˜´å½±æ—¶ï¼Œå»æ‰å†…å®¹è¾¹è·
+        anchors.margins: root.squareCorners && !root.shadowVisibleWhenMaximized ? 0 : root._safeInset
+        color: root.frameColor                  // å¿…é¡»æ˜¯ä¸é€æ˜è‰²
         z: 1
 
-        // ÏÈäÖµ½ÎÆÀí£¬ÓÃ texDpr£¨ÕûÊı DPR£©¿ª´ó£¬ÔÙÏÂ²ÉÑù
-        layer.enabled: true
+        // ä»…çª—å£åŒ–æ—¶éœ€è¦åœ†è§’é®ç½©
+        readonly property bool maskEnabled: !root.squareCorners
+
+        // å­å±‚åˆ†å±‚ï¼šéœ€è¦è£åˆ‡æˆ–éœ€è¦ä¸‹é‡‡æ ·æ—¶å¼€å¯
+        layer.enabled: frame.maskEnabled || (root.texDpr > root.dpr)
         layer.samples: 4
         layer.smooth: root.texDpr > root.dpr
         layer.textureSize: Qt.size(
-            Math.round(width  * root.texDpr),
-            Math.round(height * root.texDpr)
+            Math.max(1, Math.round(width  * root.texDpr)),
+            Math.max(1, Math.round(height * root.texDpr))
         )
 
-        // Ô²½ÇÕÚÕÖ£¨ÕÚÕÖ×ÔÉíÓÃ ShaderEffectSource Ìá¹©Í¬·Ö±æÂÊÎÆÀí£©
-        layer.effect: OpacityMask {
-            maskSource: ShaderEffectSource {
-                id: maskTex
-                live: true
-                hideSource: true
-                sourceItem: Rectangle {
-                    id: maskRect
-                    width: frame.width
-                    height: frame.height
-                    radius: root.squareCorners ? 0 : root.cornerRadius
-                    color: "black" // ÑÕÉ«ÎŞËùÎ½£¬½öÓÃÓÚÌî³ä£¬Ä¬ÈÏ alpha=0 
+        // åªæœ‰ maskEnabled æ‰æŒ‚æ•ˆæœï¼›å¦åˆ™æ˜ç¡®ä¸º null
+        layer.effect: frame.maskEnabled ? maskEffectComponent : null
+
+        // é®ç½©è£åˆ‡ï¼ˆæœªæ¥éœ€è€ƒè™‘æ›¿æ¢ OpacityMaskï¼‰
+        Component {
+            id: maskEffectComponent
+            OpacityMask {
+                maskSource: ShaderEffectSource {
+                    id: maskTex
+                    live: true
+                    hideSource: true
+                    sourceItem: Rectangle {
+                        id: maskRect
+                        width: frame.width
+                        height: frame.height
+                        radius: root.squareCorners ? 0 : root.cornerRadius
+                        color: "black"
+                    }
+                    textureSize: Qt.size(
+                        Math.max(1, Math.round(maskRect.width  * root.texDpr)),
+                        Math.max(1, Math.round(maskRect.height * root.texDpr))
+                    )
                 }
-                textureSize: Qt.size(
-                    Math.round(maskRect.width  * root.texDpr),
-                    Math.round(maskRect.height * root.texDpr)
-                )
             }
         }
+    }
+
+    // ===== é¡¶å±‚å åŠ å±‚ï¼ˆä¸å—è£åˆ‡å½±å“ï¼‰=====
+    Item {
+        id: overlayLayer
+        anchors.fill: parent
+        z: 9999
     }
 }
