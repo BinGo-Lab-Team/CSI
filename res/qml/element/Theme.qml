@@ -1,4 +1,4 @@
-﻿// Theme.qml
+﻿// Theme.qml - 主题颜色配置
 pragma ComponentBehavior: Bound
 import QtQuick
 import QtQuick.Controls.Material

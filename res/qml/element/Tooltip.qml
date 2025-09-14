@@ -1,3 +1,4 @@
+// Tooltip.qml - Tooltip×é¼þ
 import QtQuick
 import QtQuick.Controls
 

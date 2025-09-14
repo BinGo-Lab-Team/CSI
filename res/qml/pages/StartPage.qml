@@ -1,4 +1,5 @@
-﻿import QtQuick
+﻿// StartPage.qml - 开始页（测试）
+import QtQuick
 import QtQuick.Controls
 import csi
 
