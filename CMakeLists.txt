@@ -1,14 +1,21 @@
 ﻿# CMakeLists.txt for CSI project
-
-cmake_minimum_required(VERSION 3.21)
+cmake_minimum_required(VERSION 3.22)
 project(CSI LANGUAGES CXX)
-add_compile_options(/utf-8)
 
-set(CMAKE_CXX_STANDARD 20)
-set(CMAKE_CXX_STANDARD_REQUIRED ON)
-set(QT_QML_GENERATE_QMLLS_INI ON)
-set(QT_FEATURE_vulkan OFF CACHE BOOL "" FORCE)
+# 确保使用 UTF-8 编码，兼容 Clang & GCC
+add_compile_options(
+    # 使用生成器表达式，兼容多配置生成器
+    $<$<CXX_COMPILER_ID:MSVC>:/utf-8>
+    $<$<OR:$<CXX_COMPILER_ID:GNU>,$<CXX_COMPILER_ID:Clang>>:-finput-charset=UTF-8>
+    $<$<OR:$<CXX_COMPILER_ID:GNU>,$<CXX_COMPILER_ID:Clang>>:-fexec-charset=UTF-8>
+)
 
+# 设置必要属性
+set(CMAKE_CXX_STANDARD 20)          # 使用 C++ 20 标准
+set(CMAKE_CXX_STANDARD_REQUIRED ON) # 严格C++版本支持性检查
+set(QT_QML_GENERATE_QMLLS_INI ON)   # 生成 .qmlls.ini 以兼容QML语言服务
+
+# 查找需要的包 / 初始化
 find_package(Qt6 6.2 REQUIRED
     COMPONENTS
         Core
@@ -22,23 +29,30 @@ find_package(Qt6 6.2 REQUIRED
         Multimedia
         QuickEffects
 )
-qt_standard_project_setup()
-qt_policy(SET QTP0001 NEW)
+qt_standard_project_setup() # 默认初始化
+qt_policy(SET QTP0001 NEW)  # 导入无版本模块支持
+qt_policy(SET QTP0004 NEW)  # 强制生成 qmldir 支持
 
 # 编译目标
 qt_add_executable(${PROJECT_NAME}
     main.cpp
     src/backend.cpp
 )
-target_compile_definitions(${PROJECT_NAME} PRIVATE QT_QML_DEBUG)
+
+# Debug 下添加Debug预处理宏以兼容调试功能
+add_compile_options(
+    # 使用生成器表达式，兼容多配置生成器
+    $<$<CONFIG:Debug>:QT_QML_DEBUG>
+)
 
 # IDE 头文件支持 （不参与编译）
 target_sources(${PROJECT_NAME} PRIVATE
     includes/backend.h
 )
+# 指定头文件搜索目录（重要）
 target_include_directories(${PROJECT_NAME} PRIVATE "includes")
 
-# csi
+# csi - 源文件导入
 qt_add_qml_module(${PROJECT_NAME}
     URI csi
     VERSION 1.0
@@ -53,7 +67,7 @@ qt_add_qml_module(${PROJECT_NAME}
     SOURCES 
         includes/backend.h src/backend.cpp
 )
-# respkg
+# respkg - 资源文件导入
 qt_add_resources(${PROJECT_NAME} "respkg"
     PREFIX ""
     FILES 
@@ -68,7 +82,7 @@ qt_add_resources(${PROJECT_NAME} "respkg"
         res/icon/window/min.svg
         res/icon/window/close.svg
         # WAV
-        res/audio/startup.wav
+        res/audio/startup.ogg
         # QML
         res/qml/pages/StartPage.qml
         res/qml/pages/SettingsPage.qml
@@ -78,11 +92,13 @@ qt_add_resources(${PROJECT_NAME} "respkg"
         res/image/shadow@q0.png
 )
 
+# Windows 下声明为GUI程序，不弹出控制台（其他平台自动忽略）
 set_target_properties(${PROJECT_NAME}
     PROPERTIES
         WIN32_EXECUTABLE TRUE
 )
 
+# 导入模块
 target_link_libraries(${PROJECT_NAME}
     PUBLIC
         Qt6::Core
