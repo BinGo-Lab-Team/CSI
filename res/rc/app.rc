@@ -1,0 +1,33 @@
+﻿#include <windows.h> 
+
+// 定义一个图标资源，供 Explorer 使用（第一个 ICON GROUP 就是 exe 图标）
+IDI_APP_ICON ICON "app.ico"
+
+// 版本信息，显示在 exe 属性 → 详细信息
+VS_VERSION_INFO VERSIONINFO
+FILEVERSION 1, 0, 0, 0
+PRODUCTVERSION 1, 0, 0, 0
+FILEFLAGSMASK 0x3fL
+FILEFLAGS 0
+FILEOS 0x40004L
+FILETYPE 0x1L
+FILESUBTYPE 0x0L
+BEGIN
+BLOCK "StringFileInfo"
+BEGIN
+BLOCK "040904b0"   // 语言和代码页：0409 = 英文(美国)，04b0 = Unicode
+BEGIN
+VALUE "CompanyName", "Your Company\0"
+VALUE "FileDescription", "CSI Application\0"
+VALUE "FileVersion", "1.0.0.0\0"
+VALUE "InternalName", "CSI\0"
+VALUE "OriginalFilename", "CSI.exe\0"
+VALUE "ProductName", "CSI\0"
+VALUE "ProductVersion", "1.0.0.0\0"
+END
+END
+BLOCK "VarFileInfo"
+BEGIN
+VALUE "Translation", 0x0409, 1200
+END
+END

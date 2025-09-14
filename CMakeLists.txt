@@ -33,11 +33,20 @@ qt_standard_project_setup() # 默认初始化
 qt_policy(SET QTP0001 NEW)  # 导入无版本模块支持
 qt_policy(SET QTP0004 NEW)  # 强制生成 qmldir 支持
 
-# 编译目标
-qt_add_executable(${PROJECT_NAME}
+# 编译目标集
+set(APP_SOURCES 
     main.cpp
     src/backend.cpp
 )
+
+# Windows 下的程序属性
+if(WIN32)
+    set(APP_ICON_RC "${CMAKE_CURRENT_SOURCE_DIR}/res/rc/app.rc")
+    list(APPEND APP_SOURCES ${APP_ICON_RC})
+endif()
+
+# 导入编译目标
+qt_add_executable(${PROJECT_NAME} ${APP_SOURCES})
 
 # Debug 下添加Debug预处理宏以兼容调试功能
 add_compile_options(
