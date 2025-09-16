@@ -1,6 +1,6 @@
 # 安全策略 | zh-cn
 我们会对以下版本的项目提供安全更新：
-- 主分支（`main` / `master`）  
+- 主分支（`main`）  
 - 最近的稳定发布版本  
 
 旧版本通常不会再收到安全修复，请尽快升级到受支持版本。
@@ -34,7 +34,7 @@
 
 # Security Policy | en-us
 We currently provide security updates for:
-- The main branch (`main` / `master`)  
+- The main branch (`main`)  
 - The latest stable release  
 
 Older releases generally do not receive security patches. Please upgrade to a supported version.
