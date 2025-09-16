@@ -4,6 +4,7 @@ import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
 import QtMultimedia
+import QtQuick.Controls.Material
 
 // ==== 程序窗口 ====
 ApplicationWindow {
@@ -14,40 +15,126 @@ ApplicationWindow {
     title: win.tr("csi.title", "CSI")
     color: "transparent"
     flags: Qt.Window | Qt.FramelessWindowHint
+    opacity: 1.0  // 添加透明度属性
+
+    // 构造主题颜色属性
+    Theme { 
+        id: theme 
+        parentWindow: win
+    }
+
+    // 测试配色方案更改 - 20250917/PASS
+    /*Timer {
+        id: themeToggleTimer
+        interval: 1000
+        repeat: true
+        running: true
+        onTriggered: {
+            win.Material.theme = (win.Material.theme === Material.Dark) ? Material.Light : Material.Dark;
+        }
+    }*/
 
     // 监听可见性变化
     Connections {
         target: win
         function onVisibilityChanged(newVis) {
+            if (newVis === Window.Minimized) {
+                // 进入最小化：记录之前的可见状态（外部最小化也能捕获）
+                if (win._preMinVis === -1)
+                    win._preMinVis = win._lastVis;
+                if (!geomAnim.running)
+                    win.opacity = 1.0;
+            } else if (newVis === Window.Windowed || newVis === Window.AutomaticVisibility) {
+                // 从最小化恢复到可见
+                if (win._lastVis === Window.Minimized) {
+                    _freezeRecord = true; // 避免过渡阶段覆盖 lastNormalGeom
+                    if (win._preMinVis === Window.Maximized) {
+                        Qt.callLater(() => {
+                            win.showMaximized();
+                            Qt.callLater(() => { _freezeRecord = false; });
+                        });
+                    } else if (win._preMinVis === Window.FullScreen) {
+                        // 全屏最小化后直接恢复为最大化
+                        Qt.callLater(() => {
+                            win.showMaximized();
+                            Qt.callLater(() => { _freezeRecord = false; });
+                        });
+                    } else {
+                        // 普通窗口：恢复到保存的几何
+                        win.x = win.lastNormalGeom.x;
+                        win.y = win.lastNormalGeom.y;
+                        win.width = win.lastNormalGeom.width;
+                        win.height = win.lastNormalGeom.height;
+                        Qt.callLater(() => { _freezeRecord = false; });
+                    }
+                    win._preMinVis = -1;
+                }
+            } else if (newVis === Window.FullScreen) {
+                // 某些平台：最小化后从任务栏恢复会直接回到全屏，这里强制切回最大化
+                if (win._lastVis === Window.Minimized) {
+                    _freezeRecord = true;
+                    Qt.callLater(() => {
+                        win.showMaximized();
+                        Qt.callLater(() => { _freezeRecord = false; });
+                    });
+                    win._preMinVis = -1;
+                }
+            }
             win._lastVis = newVis;
         }
     }
 
     // ===== 配置 =====
-    readonly property bool maximized: visibility === Window.Maximized
-    readonly property bool squareCorners: (visibility === Window.FullScreen) || (visibility === Window.Maximized)
+    property bool isMaximized: visibility === Window.Maximized
+    // 在最大化动画期间（_animTarget === "max"）提前移除圆角与阴影，避免边缘二次过渡；全屏（F11）保持原有时序
+    readonly property bool squareCorners: (win.visibility === Window.FullScreen) || win.isMaximized || (win._animTarget === "max")
     property int currentTab: 0
     property int cornerRadius: 12
-    property int inset: 18
+    property int inset: 18  // 阴影厚度。对于 shadow@q0.png 的基准值为 24
 
     // 用于还原时的最小尺寸下限，避免跳点
     property int minW: 400
     property int minH: 300
 
     // 还原时需要的上一次非全屏窗口几何（持续采样）
-    property int lastNormalX: 100
-    property int lastNormalY: 100
-    property int lastNormalWidth: 960
-    property int lastNormalHeight: 640
+    property rect lastNormalGeom: Qt.rect(x, y, width, height)
     property int _lastVis: Window.AutomaticVisibility
+
+    // 进行系统尺寸调整时的计数与状态
+    property int _resizeCounter: 0
+    readonly property bool isResizing: _resizeCounter > 0
+    // 进入/退出全屏或最小化还原等阶段性操作时，短暂冻结 lastNormalGeom 的自动采样
+    property bool _freezeRecord: false
+    // 记录进入最小化前的可见状态，用于还原时恢复到对应状态
+    property int _preMinVis: -1
+
+    // 启动动画参数
+    readonly property int startupOffsetY: 20            // 稍微增加初始上偏移
+    readonly property real startupInitialAngle: -3      // 初始负角度（度）
+    readonly property real startupInitialScale: 0.9     // 初始缩放比例
+    readonly property int startupFadeDuration: 200      // 淡入时长
+    readonly property int startupFirstStageDuration: 350    // 第一阶段动画时长（旋转和缩放）
+    readonly property int startupSecondStageDuration: 450   // 第二阶段动画时长（额外的回弹）
+    readonly property real startupBackOvershoot: 2.5        // 增加回弹幅度
+
+    // 关闭动画参数
+    readonly property int closeFadeDuration: 180    // 淡出时长
+    readonly property int closeScaleDuration: 200   // 缩放时长
+    readonly property real closeTargetScale: 0.88   // 目标缩放比例
+    readonly property int closeAnimDelay: 0         // 动画延迟
+
+    // 最小化动画参数
+    readonly property int minUpOffset: 16        // 向上偏移像素
+    readonly property int minDownOffset: 140     // 向下偏移最大像素
+    readonly property int minUpDuration: 160     // 上升动画时长
+    readonly property int minDownDuration: 200   // 下降动画时长
+    readonly property int minFadeDuration: 350   // 淡出动画时长
 
     // 只要处于 Windowed/AutomaticVisibility，就持续维护 lastNormal
     function _maybeRecordIfNormal() {
-        if (win.visibility === Window.AutomaticVisibility || win.visibility === Window.Windowed) {
-            lastNormalX = win.x;
-            lastNormalY = win.y;
-            lastNormalWidth = win.width;
-            lastNormalHeight = win.height;
+        if ((win.visibility === Window.AutomaticVisibility || win.visibility === Window.Windowed)
+                && !geomAnim.running && !startupFX.running && !_freezeRecord) {
+            lastNormalGeom = Qt.rect(win.x, win.y, win.width, win.height);
         }
     }
 
@@ -57,40 +144,171 @@ ApplicationWindow {
     onWidthChanged: _maybeRecordIfNormal()
     onHeightChanged: _maybeRecordIfNormal()
 
-    // 还原到上一次正常几何
-    function restoreFromLastNormal() {
-        const nx = Math.round(lastNormalX);
-        const ny = Math.round(lastNormalY);
-        const nw = Math.max(minW, Math.round(lastNormalWidth));
-        const nh = Math.max(minH, Math.round(lastNormalHeight));
+    readonly property int durFast: 80
+    readonly property int durMed: 260 // 动画时长
+    readonly property int debounceMs: 300 // 防抖时间应大于动画时长
+    property double _lastToggleTS: 0
 
-        win.showNormal();
-        Qt.callLater(() => {
-            win.x = nx;
-            win.y = ny;
-            win.width = nw;
-            win.height = nh;
+    // 动画目标值
+    property int _toX: win.x
+    property int _toY: win.y
+    property int _toW: win.width
+    property int _toH: win.height
+    // 动画目标状态："" | "max" | "fs" | "normal" | "min" | "close"
+    property string _animTarget: ""
+
+    // 几何和透明度动画
+    ParallelAnimation {
+        id: geomAnim
+        NumberAnimation { target: win; property: "x";      duration: win.durMed; easing.type: Easing.OutCubic; to: win._toX }
+        NumberAnimation { target: win; property: "y";      duration: win.durMed; easing.type: Easing.OutCubic; to: win._toY }
+        NumberAnimation { target: win; property: "width";  duration: win.durMed; easing.type: Easing.OutCubic; to: win._toW }
+        NumberAnimation { target: win; property: "height"; duration: win.durMed; easing.type: Easing.OutCubic; to: win._toH }
+        NumberAnimation { target: win; property: "opacity"; duration: win.durMed; easing.type: Easing.OutCubic; to: win._animTarget === "min" || win._animTarget === "close" ? 0 : 1 }
+        onStopped: {
+            if (win._animTarget === "max") {
+                win.visibility = Window.Maximized;
+            } else if (win._animTarget === "fs") {
+                win.showFullScreen();
+            } else if (win._animTarget === "min") {
+                win.showMinimized();
+                Qt.callLater(() => {
+                    win.opacity = 1.0;
+                });
+            } else if (win._animTarget === "close") {
+                win.close();
+            }
+            win._animTarget = "";
+        }
+    }
+
+    function runGeom(x, y, w, h) {
+        _toX = x;
+        _toY = y;
+        _toW = w;
+        _toH = h;
+        geomAnim.restart();
+    }
+
+    // 停止并复位启动动画，避免与 F11/最大化过渡叠加引起抖动
+    function _resetStartupFX() {
+        if (startupFX.running) {
+            startupFX.stop();
+        }
+        // 复位变换到静止态
+        startupTrans.y = 0;
+        startupRot.angle = 0;
+        startupScale.xScale = 1.0;
+        startupScale.yScale = 1.0;
+        shell.opacity = 1.0;
+    }
+
+    function maximizeSmooth() {
+        if (win.isMaximized) return;
+        _resetStartupFX();
+        lastNormalGeom = Qt.rect(win.x, win.y, win.width, win.height);
+        const g = Qt.rect(0, 0, Screen.desktopAvailableWidth, Screen.desktopAvailableHeight);
+        win._animTarget = "max";
+        runGeom(g.x, g.y, g.width, g.height);
+    }
+
+    // 仅用于"最大化 -> 还原"的平滑过渡
+    function restoreSmooth() {
+        if (!win.isMaximized) return;
+        _resetStartupFX();
+        win.showNormal(); // 必须先切回 Normal，才能自由控制几何
+        
+        // 从当前最大化位置开始动画，避免闪烁
+        const g = Qt.rect(0, 0, Screen.desktopAvailableWidth, Screen.desktopAvailableHeight);
+        win.x = g.x; win.y = g.y; win.width = g.width; win.height = g.height;
+        Qt.callLater(function() {
+            win._animTarget = "normal";
+            runGeom(lastNormalGeom.x, lastNormalGeom.y, lastNormalGeom.width, lastNormalGeom.height);
         });
     }
 
-    readonly property int durFast: 80
-    readonly property int durMed: 120
-    readonly property int durSlow: 160
-    readonly property int debounceMs: 200
-    property double _lastToggleTS: 0
+    // 进入全屏的平滑过渡
+    function enterFullscreenSmooth() {
+        if (win.visibility === Window.FullScreen) return;
+        _resetStartupFX();
+        // 仅在普通窗口状态下记录 lastNormalGeom，避免在“最大化 -> 全屏”时覆盖原有几何
+        if (win.visibility === Window.Windowed || win.visibility === Window.AutomaticVisibility) {
+            lastNormalGeom = Qt.rect(win.x, win.y, win.width, win.height);
+        }
+        
+        // 获取整个屏幕的尺寸（包括任务栏）
+        const g = Qt.rect(0, 0, Screen.width, Screen.height);
+        
+        // 先切换到普通窗口以避免闪烁（不影响 lastNormalGeom）
+        if (win.visibility === Window.Maximized) {
+            win.showNormal();
+        }
+        
+        win._animTarget = "fs";
+        runGeom(g.x, g.y, g.width, g.height);
+    }
 
-    // 最大化 <-> 还原（含防抖），不再依赖切换瞬间记录
+    // 退出全屏的平滑过渡（F11）
+    function exitFullscreenSmooth() {
+        if (win.visibility !== Window.FullScreen) return;
+        _resetStartupFX();
+        // 冻结自动记录，避免中间的 showNormal/几何设置污染 lastNormalGeom
+        _freezeRecord = true;
+        win.showNormal();
+        
+        // 先设置到全屏几何，作为动画起点
+        const g = Qt.rect(0, 0, Screen.width, Screen.height);
+        win.x = g.x;
+        win.y = g.y;
+        win.width = g.width;
+        win.height = g.height;
+        
+        Qt.callLater(function() {
+            win._animTarget = "normal";
+            runGeom(lastNormalGeom.x, lastNormalGeom.y, lastNormalGeom.width, lastNormalGeom.height);
+            // 在动画开始后，稍晚一点解除冻结，确保过渡阶段不会写入
+            Qt.callLater(function(){ _freezeRecord = false; });
+        });
+    }
+
+    // 最小化动画
+    function minimizeSmooth() {
+        if (win.visibility === Window.Minimized || minFX.running) return;
+        
+        // 记录最小化前的可见状态
+        win._preMinVis = win.visibility;
+
+        // 仅在普通窗口时更新 lastNormalGeom 用于恢复
+        if (win.visibility === Window.Windowed || win.visibility === Window.AutomaticVisibility) {
+            lastNormalGeom = Qt.rect(win.x, win.y, win.width, win.height);
+        }
+        
+        win._animTarget = "min";
+        
+        // 停止其他可能的动画
+        if (geomAnim.running) geomAnim.stop();
+        if (closeFX.running) closeFX.stop();
+        
+        minFX.start();
+    }
+
+    // 关闭动画
+    function closeSmooth() {
+        if (closeFX.running) return;
+        _resetStartupFX();
+        win._animTarget = "close";  // 标记状态
+        if (geomAnim.running) geomAnim.stop();
+        closeFX.start();
+    }
+
+    // 最大化 <-> 还原（含防抖）
     function _debouncedToggleMaxRestore() {
         const t = Date.now();
         if (t - _lastToggleTS < debounceMs)
             return;
         _lastToggleTS = t;
 
-        if (win.visibility === Window.Maximized || win.visibility === Window.FullScreen) {
-            restoreFromLastNormal();
-        } else {
-            win.showMaximized();
-        }
+        win.isMaximized ? restoreSmooth() : maximizeSmooth();
     }
 
     // 获取当前 DPR
@@ -118,16 +336,82 @@ ApplicationWindow {
         }
     }
 
-    // ==== 主题 ====
-    Theme {
-        id: theme
+    // 启动动画组（调整时序）
+    ParallelAnimation {
+        id: startupFX
+        running: false
+
+        // 不透明度动画立即开始
+        SequentialAnimation {
+            NumberAnimation { 
+                target: shell
+                property: "opacity"
+                from: 0
+                to: 1.0
+                duration: win.startupFadeDuration
+                easing.type: Easing.OutCubic
+            }
+        }
+
+        // 缩放动画（与旋转同步）
+        SequentialAnimation {
+            NumberAnimation {
+                target: startupScale
+                property: "xScale"
+                from: win.startupInitialScale
+                to: 1.0
+                duration: win.startupFirstStageDuration
+                easing.type: Easing.OutBack
+                easing.overshoot: win.startupBackOvershoot * 0.3  // 第一阶段回弹较小
+            }
+            NumberAnimation {
+                target: startupScale
+                property: "xScale"
+                from: 1.0
+                to: 1.0
+                duration: win.startupSecondStageDuration
+                easing.type: Easing.OutBack
+                easing.overshoot: win.startupBackOvershoot
+            }
+        }
+
+        // 位移动画保持较长时间
+        SequentialAnimation {
+            NumberAnimation {
+                target: startupTrans
+                property: "y"
+                from: -win.startupOffsetY
+                to: 0
+                duration: win.startupFirstStageDuration + win.startupSecondStageDuration
+                easing.type: Easing.OutBack
+                easing.overshoot: win.startupBackOvershoot
+            }
+        }
+
+        // 旋转动画（第一阶段就完成）
+        SequentialAnimation {
+            NumberAnimation {
+                target: startupRot
+                property: "angle"
+                from: win.startupInitialAngle
+                to: 0
+                duration: win.startupFirstStageDuration
+                easing.type: Easing.OutBack
+                easing.overshoot: win.startupBackOvershoot * 0.3  // 第一阶段回弹较小
+            }
+        }
+
+        onFinished: {
+            // 清理变换
+            startupTrans.y = 0
+            startupRot.angle = 0
+            startupScale.xScale = 1.0
+            startupScale.yScale = 1.0
+            shell.opacity = 1.0
+        }
     }
-    property color menuGradTop: theme.menuGradTop
-    property color menuGradMid: theme.menuGradMid
-    property color menuGradBot: theme.menuGradBot
-    property color menuTextColor: theme.menuTextColor
-    property color hoverMask: theme.hoverMask
-    readonly property color invertBase: menuTextColor
+
+    Component.onCompleted: startupFX.start()
 
     function tr(id, fallback) {
         var s = qsTrId(id);
@@ -136,17 +420,16 @@ ApplicationWindow {
 
     function toggleFullscreen() {
         if (win.visibility === Window.FullScreen) {
-            win.showNormal();
+            exitFullscreenSmooth();
         } else {
-            win.showFullScreen();
+            enterFullscreenSmooth();
         }
     }
-
 
     // ==== 快捷键 ====
     Shortcut {
         sequences: [StandardKey.Close]
-        onActivated: win.close()
+        onActivated: win.closeSmooth()
     }
     Shortcut {
         sequences: ["Alt+F10"]
@@ -159,7 +442,7 @@ ApplicationWindow {
     Shortcut {
         sequences: ["Escape"]
         onActivated: if (win.visibility === Window.FullScreen)
-            win.showNormal()
+            win.exitFullscreenSmooth()
     }
     Shortcut {
         sequences: ["Ctrl+1"]
@@ -172,13 +455,124 @@ ApplicationWindow {
 
     // ==== 窗口 ====
     ShadowFrame {
-        id: shell
-        anchors.fill: parent
-        dpr: Screen.devicePixelRatio
-        inset: win.squareCorners ? 0 : win.inset
-        cornerRadius: win.cornerRadius
-        squareCorners: win.squareCorners
-        frameColor: win.palette.window
+        id: shell                                   // 组件ID
+        anchors.fill: parent                        // 填满父项
+        dpr: Screen.devicePixelRatio                // 传入设备像素比
+        inset: win.squareCorners ? 0 : win.inset    // 阴影厚度
+        cornerRadius: win.cornerRadius              // 传入圆角半径
+        squareCorners: win.squareCorners            // 是否启用圆角
+        frameColor: theme.backgroundColor           // 内容框底色
+        opacity: 0                                  // 初始不透明度
+
+        // ==== 动画执行 ====
+        transform: [
+            Rotation {
+                id: startupRot
+                angle: win.startupInitialAngle
+                origin.x: shell.width / 2
+                origin.y: shell.height / 2
+                axis { x: 0; y: 0; z: 1 }
+            },
+            Scale {
+                id: startupScale
+                origin.x: shell.width / 2
+                origin.y: shell.height / 2
+                xScale: win.startupInitialScale
+                yScale: xScale
+            },
+            Translate {
+                id: startupTrans
+                y: -win.startupOffsetY
+            },
+            Scale {
+                id: closeScale
+                origin.x: shell.width / 2
+                origin.y: shell.height / 2
+                xScale: 1.0
+                yScale: xScale
+            },
+            Translate {
+                id: minTrans
+                y: 0
+            }
+        ]
+
+        // ==== 关闭动画 ====
+        ParallelAnimation {
+            id: closeFX
+            running: false
+
+            // 缩放动画
+            NumberAnimation {
+                target: closeScale
+                property: "xScale"
+                from: 1.0
+                to: win.closeTargetScale
+                duration: win.closeScaleDuration
+                easing.type: Easing.OutQuad
+            }
+
+            // 不透明度动画
+            SequentialAnimation {
+                // 稍微提前开始淡出
+                PauseAnimation { duration: win.closeAnimDelay }
+                NumberAnimation {
+                    target: shell
+                    property: "opacity"
+                    from: 1.0
+                    to: 0
+                    duration: win.closeFadeDuration
+                    easing.type: Easing.OutCubic
+                }
+            }
+
+            onFinished: win.close()
+        }
+
+        // ==== 最小化动画 ====
+        ParallelAnimation {
+            id: minFX
+            running: false
+
+            // 位移动画（先上后下）
+            SequentialAnimation {
+                NumberAnimation {
+                    target: minTrans
+                    property: "y"
+                    from: 0
+                    to: -win.minUpOffset
+                    duration: win.minUpDuration
+                    easing.type: Easing.OutQuad
+                }
+                NumberAnimation {
+                    target: minTrans
+                    property: "y"
+                    to: win.minDownOffset
+                    duration: win.minDownDuration
+                    easing.type: Easing.InCubic  // 使用 InCubic 让下落更快
+                }
+            }
+
+            // 透明度动画（开始下落时淡出）
+            SequentialAnimation {
+                PauseAnimation { duration: win.minUpDuration }
+                NumberAnimation {
+                    target: shell
+                    property: "opacity"
+                    from: 1.0
+                    to: 0
+                    duration: win.minFadeDuration
+                    easing.type: Easing.OutCubic
+                }
+            }
+
+            onFinished: {
+                // 恢复到系统最小化，并复位变换
+                win.showMinimized();
+                minTrans.y = 0
+                shell.opacity = 1.0
+            }
+        }
 
         // ===== 标题栏 =====
         Rectangle {
@@ -197,44 +591,59 @@ ApplicationWindow {
                 anchors.fill: parent
                 renderTarget: Canvas.FramebufferObject
                 renderStrategy: Canvas.Immediate
-                property bool running: true
 
                 property real bandWidth: width
                 property real pxPerSecond: 120
                 property real dpr: Screen.devicePixelRatio
 
-                property real _t0: 0
-                function _nowSec() {
-                    return Date.now() / 1000.0;
-                }
+                // 累计进度（秒），代替绝对时间，支持在拉伸时暂停
+                property real progressSec: 0
+                property real _lastTick: 0
+
+                function _nowSec() { return Date.now() / 1000.0; }
 
                 Timer {
                     id: raf
                     interval: 33
                     repeat: true
-                    running: flowFX.running && flowFX.visible && (win.visibility !== Window.Minimized && win.visibility !== Window.Hidden)
-                    onTriggered: flowFX.requestPaint()
+                    running: win.visibility !== Window.Hidden  // 只在窗口处于后台时暂停
+                    onTriggered: {
+                        const now = flowFX._nowSec();
+                        let dt = now - flowFX._lastTick;
+                        flowFX._lastTick = now;
+                        // 在拉伸过程中不推进进度；恢复时避免一次性跳动，限制最大步长
+                        if (!win.isResizing) {
+                            dt = Math.max(0, Math.min(dt, 0.08)); // 限制到 ~80ms
+                            flowFX.progressSec += dt;
+                        }
+                        flowFX.requestPaint();
+                    }
                 }
 
                 Component.onCompleted: {
-                    _t0 = _nowSec();
+                    _lastTick = _nowSec();
                     requestPaint();
                     raf.start();
                 }
 
-                onVisibleChanged: requestPaint()
+                onVisibleChanged: {
+                    // 重置节拍，避免可见性变化带来的大步长
+                    flowFX._lastTick = flowFX._nowSec();
+                    requestPaint();
+                }
                 onWidthChanged: requestPaint()
                 onHeightChanged: requestPaint()
                 onDprChanged: requestPaint()
                 Connections {
                     target: win
                     function onVisibilityChanged() {
+                        flowFX._lastTick = flowFX._nowSec();
                         flowFX.requestPaint();
                     }
                 }
 
                 function colors() {
-                    return (theme.gradientColors && theme.gradientColors.length > 0) ? theme.gradientColors : [win.menuGradTop, win.menuGradMid, win.menuGradBot];
+                    return (theme.gradientColors && theme.gradientColors.length > 0) ? theme.gradientColors : [theme.menuGradTop, theme.menuGradMid, theme.menuGradBot];
                 }
 
                 onPaint: {
@@ -248,11 +657,11 @@ ApplicationWindow {
                     ctx.clearRect(0, 0, w, h);
 
                     const cols = colors().slice();
-                    if (cols.length && cols[0] !== cols[cols.length - 1])
+                    if (cols.length > 0 && cols[0] !== cols[cols.length - 1])
                         cols.push(cols[0]);
 
                     const bw = Math.max(1, bandWidth);
-                    const elapsed = _nowSec() - _t0;
+                    const elapsed = progressSec; // 使用累计进度，避免暂停期间跳变
                     const offsetPx = (elapsed * pxPerSecond) % bw;
 
                     let startX = -offsetPx - bw;
@@ -261,7 +670,7 @@ ApplicationWindow {
                         const g = ctx.createLinearGradient(xi, 0, xi + bw, 0);
                         const n = cols.length;
                         for (let i = 0; i < n; ++i) {
-                            const t = (n === 1) ? 0.5 : i / (n - 1);
+                            const t = (n <= 1) ? 0.5 : i / (n - 1);
                             g.addColorStop(t, cols[i]);
                         }
                         ctx.fillStyle = g;
@@ -270,93 +679,181 @@ ApplicationWindow {
                     }
                 }
             }
-            // 控制标题栏启停
-            QtObject {
-                id: flowAnim
-                property alias running: flowFX.running
-            }
 
-            // —— 左侧标题 ——
+            // —— 左侧标题 —__
             Label {
                 id: titleText
                 text: win.tr("csi.title", "CSI")
                 anchors.left: parent.left
                 anchors.leftMargin: 14
                 anchors.verticalCenter: parent.verticalCenter
-                color: win.menuTextColor
+                color: theme.menuTextColor
                 font.pixelSize: 26
                 font.weight: Font.DemiBold
                 z: 1
             }
 
-            // —— 中部导航 ——
-            Row {
-                id: navCenter
-                spacing: 10
+            // —— 中部导航 —__
+            Item {
+                id: navWrap
                 anchors.verticalCenter: parent.verticalCenter
                 anchors.horizontalCenter: parent.horizontalCenter
                 z: 1
+                readonly property int spacing: 10
+                width: tabStart.width + spacing + tabSettings.width
+                height: Math.max(tabStart.height, tabSettings.height)
+
+                // 滑动高亮块（不参与布局，置于按钮下方）
+                Rectangle {
+                    id: tabHighlight
+                    radius: 8
+                    height: 36
+                    y: (navWrap.height - height) / 2
+                    color: theme.menuTextColor
+                    z: 0
+                    width: (win.currentTab === 0 ? tabStart.width : tabSettings.width)
+                    x: (win.currentTab === 0 ? tabStart.x : tabSettings.x)
+                    Behavior on x { NumberAnimation { duration: win.durMed; easing.type: Easing.OutCubic } }
+                    Behavior on width { NumberAnimation { duration: win.durMed; easing.type: Easing.OutCubic } }
+                }
 
                 ToolButton {
                     id: tabStart
+                    x: 0
+                    y: (navWrap.height - height) / 2
                     text: win.tr("csi.tab.start", "启动")
-                    checkable: true
-                    checked: win.currentTab === 0
+                    checkable: false
                     padding: 10
+                    height: 36
                     implicitHeight: 36
                     implicitWidth: Math.max(88, contentItem.implicitWidth + 20)
                     onClicked: win.currentTab = 0
                     scale: pressed ? 0.98 : 1.0
+                    z: 1
                     Behavior on scale {
-                        NumberAnimation {
-                            duration: win.durFast
-                            easing.type: Easing.OutCubic
-                        }
+                        NumberAnimation { duration: win.durFast; easing.type: Easing.OutCubic }
                     }
                     background: Rectangle {
                         radius: 8
-                        color: tabStart.checked ? win.invertBase : (tabStart.hovered ? win.hoverMask : "transparent")
+                        color: (tabStart.hovered && win.currentTab !== 0) ? theme.hoverMask : "transparent"
                     }
-                    contentItem: Label {
-                        text: tabStart.text
-                        font.pixelSize: 15
-                        color: tabStart.checked ? win.menuGradTop : win.menuTextColor
-                        horizontalAlignment: Text.AlignHCenter
-                        verticalAlignment: Text.AlignVCenter
+                    // 基础文字 + 高亮裁剪叠加
+                    contentItem: Item {
+                        id: startContent
+                        anchors.fill: parent
+                        // 计算与高亮块在本地坐标的交集
+                        property real hiLeft: {
+                            var pL = startContent.mapFromItem(navWrap, tabHighlight.x, 0).x
+                            return Math.max(0, Math.min(pL, startContent.width))
+                        }
+                        property real hiRight: {
+                            var pR = startContent.mapFromItem(navWrap, tabHighlight.x + tabHighlight.width, 0).x
+                            return Math.max(0, Math.min(pR, startContent.width))
+                        }
+                        property real hiWidth: Math.max(0, hiRight - hiLeft)
+
+                        // 底层常规文字
+                        Label {
+                            anchors.fill: parent
+                            text: tabStart.text
+                            font.pixelSize: 15
+                            color: theme.menuTextColor
+                            horizontalAlignment: Text.AlignHCenter
+                            verticalAlignment: Text.AlignVCenter
+                        }
+                        // 仅在交集区域显示的高亮文字
+                        Item {
+                            id: startClip
+                            anchors.top: parent.top
+                            anchors.bottom: parent.bottom
+                            x: startContent.hiLeft
+                            width: startContent.hiWidth
+                            clip: true
+                            visible: width > 0
+                            // 使用与底层相同排版，但整体左移到与父对齐，由 clip 截断
+                            Label {
+                                x: -startClip.x
+                                width: startContent.width
+                                height: startContent.height
+                                text: tabStart.text
+                                font.pixelSize: 15
+                                color: theme.menuGradTop
+                                horizontalAlignment: Text.AlignHCenter
+                                verticalAlignment: Text.AlignVCenter
+                            }
+                        }
                     }
                 }
 
                 ToolButton {
                     id: tabSettings
+                    x: tabStart.width + navWrap.spacing
+                    y: (navWrap.height - height) / 2
                     text: win.tr("csi.tab.settings", "设置")
-                    checkable: true
-                    checked: win.currentTab === 1
+                    checkable: false
                     padding: 10
+                    height: 36
                     implicitHeight: 36
                     implicitWidth: Math.max(88, contentItem.implicitWidth + 20)
                     onClicked: win.currentTab = 1
                     scale: pressed ? 0.98 : 1.0
+                    z: 1
                     Behavior on scale {
-                        NumberAnimation {
-                            duration: win.durFast
-                            easing.type: Easing.OutCubic
-                        }
+                        NumberAnimation { duration: win.durFast; easing.type: Easing.OutCubic }
                     }
                     background: Rectangle {
                         radius: 8
-                        color: tabSettings.checked ? win.invertBase : (tabSettings.hovered ? win.hoverMask : "transparent")
+                        color: (tabSettings.hovered && win.currentTab !== 1) ? theme.hoverMask : "transparent"
                     }
-                    contentItem: Label {
-                        text: tabSettings.text
-                        font.pixelSize: 15
-                        color: tabSettings.checked ? win.menuGradTop : win.menuTextColor
-                        horizontalAlignment: Text.AlignHCenter
-                        verticalAlignment: Text.AlignVCenter
+                    // 基础文字 + 高亮裁剪叠加
+                    contentItem: Item {
+                        id: settingsContent
+                        anchors.fill: parent
+                        // 计算与高亮块在本地坐标的交集
+                        property real hiLeft: {
+                            var pL = settingsContent.mapFromItem(navWrap, tabHighlight.x, 0).x
+                            return Math.max(0, Math.min(pL, settingsContent.width))
+                        }
+                        property real hiRight: {
+                            var pR = settingsContent.mapFromItem(navWrap, tabHighlight.x + tabHighlight.width, 0).x
+                            return Math.max(0, Math.min(pR, settingsContent.width))
+                        }
+                        property real hiWidth: Math.max(0, hiRight - hiLeft)
+
+                        // 底层常规文字
+                        Label {
+                            anchors.fill: parent
+                            text: tabSettings.text
+                            font.pixelSize: 15
+                            color: theme.menuTextColor
+                            horizontalAlignment: Text.AlignHCenter
+                            verticalAlignment: Text.AlignVCenter
+                        }
+                        // 仅在交集区域显示的高亮文字
+                        Item {
+                            id: settingsClip
+                            anchors.top: parent.top
+                            anchors.bottom: parent.bottom
+                            x: settingsContent.hiLeft
+                            width: settingsContent.hiWidth
+                            clip: true
+                            visible: width > 0
+                            Label {
+                                x: -settingsClip.x
+                                width: settingsContent.width
+                                height: settingsContent.height
+                                text: tabSettings.text
+                                font.pixelSize: 15
+                                color: theme.menuGradTop
+                                horizontalAlignment: Text.AlignHCenter
+                                verticalAlignment: Text.AlignVCenter
+                            }
+                        }
                     }
                 }
             }
 
-            // —— 右上角窗口控制 ——
+            // —— 右上角窗口控制 —__
             Row {
                 id: rowControls
                 spacing: 6
@@ -365,6 +862,7 @@ ApplicationWindow {
                 anchors.verticalCenter: parent.verticalCenter
                 z: 0
 
+                // SVG图标文件路径
                 readonly property string iconMin: "qrc:/res/icon/window/min.svg"
                 readonly property string iconMax: "qrc:/res/icon/window/max.svg"
                 readonly property string iconRes: "qrc:/res/icon/window/restore.svg"
@@ -374,90 +872,86 @@ ApplicationWindow {
                     id: btnMin
                     implicitWidth: 36
                     implicitHeight: 28
-                    onClicked: win.showMinimized()
+                    display: AbstractButton.IconOnly
+                    icon.source: rowControls.iconMin
+                    icon.color: theme.defaultText
+                    icon.width: 14
+                    icon.height: 14
+                    onClicked: win.minimizeSmooth()
                     background: Rectangle {
                         radius: 6
-                        color: btnMin.hovered ? win.hoverMask : "transparent"
-                    }
-                    contentItem: Image {
-                        source: rowControls.iconMin
-                        fillMode: Image.PreserveAspectFit
-                        anchors.centerIn: parent
-                        width: 14
-                        height: 14
+                        color: btnMin.hovered ? theme.hoverMask : "transparent"
                     }
                 }
                 ToolButton {
                     id: btnMax
                     implicitWidth: 36
                     implicitHeight: 28
+                    display: AbstractButton.IconOnly
+                    icon.source: win.squareCorners ? rowControls.iconRes : rowControls.iconMax
+                    icon.color: theme.defaultText
+                    icon.width: 14
+                    icon.height: 14
                     onClicked: win._debouncedToggleMaxRestore()
                     background: Rectangle {
                         radius: 6
-                        color: btnMax.hovered ? win.hoverMask : "transparent"
-                    }
-                    contentItem: Image {
-                        source: win.squareCorners ? rowControls.iconRes : rowControls.iconMax
-                        fillMode: Image.PreserveAspectFit
-                        anchors.centerIn: parent
-                        width: 14
-                        height: 14
+                        color: btnMax.hovered ? theme.hoverMask : "transparent"
                     }
                 }
                 ToolButton {
                     id: btnClose
                     implicitWidth: 36
                     implicitHeight: 28
-                    onClicked: win.close()
+                    display: AbstractButton.IconOnly
+                    icon.source: rowControls.iconClose
+                    icon.color: theme.defaultText
+                    icon.width: 14
+                    icon.height: 14
+                    onClicked: win.closeSmooth()
                     background: Rectangle {
                         radius: 6
                         color: btnClose.hovered ? "#e5484d" : "transparent"
                     }
-                    contentItem: Image {
-                        source: rowControls.iconClose
-                        fillMode: Image.PreserveAspectFit
-                        anchors.centerIn: parent
-                        width: 14
-                        height: 14
-                    }
                 }
             }
 
-            // 全屏时鼠标拖动还原
+            // 全屏/最大化时鼠标拖动还原
             DragHandler {
                 id: dragTitle
                 target: null
                 grabPermissions: PointerHandler.CanTakeOverFromAnything
                 onActiveChanged: if (active) {
                     const p = dragTitle.centroid.scenePosition;
-
-                    function relayoutAndDrag() {
-                        // 以鼠标为锚点计算新位置，减少跳闪
-                        var w = Math.max(win.minW, lastNormalWidth);
-                        var h = Math.max(win.minH, lastNormalHeight);
-                        var offX = Math.max(0, Math.min(w, p.x - win.x));
-                        var offY = Math.max(0, Math.min(h, p.y - win.y));
-                        var nx = Math.round(p.x - offX);
-                        var ny = Math.round(p.y - Math.min(offY, titleBar.height));
-                        ny = Math.max(0, ny);
-                        win.x = nx;
-                        win.y = ny;
-                        win.width = w;
-                        win.height = h;
-                        // 还原后等待一帧再进入拖动
-                        Qt.callLater(() => {
-                            if (flowAnim)
-                                flowAnim.running = true;
-                            win.startSystemMove();
-                        });
-                    }
-
-                    if (win.visibility === Window.FullScreen || win.maximized) {
-                        // 处于后台时暂停标题栏动画，减少开销
-                        if (flowAnim)
-                            flowAnim.running = false;
+                    if (win.visibility === Window.FullScreen) {
+                        // 全屏：直接还原，无动画
+                        if (geomAnim.running) geomAnim.stop();
                         win.showNormal();
-                        Qt.callLater(relayoutAndDrag);
+                        Qt.callLater(() => {
+                            var w = Math.max(win.minW, win.lastNormalGeom.width);
+                            var h = Math.max(win.minH, win.lastNormalGeom.height);
+                            var offX = Math.max(0, Math.min(w, p.x));
+                            var offY = Math.max(0, Math.min(h, p.y));
+                            win.width = w;
+                            win.height = h;
+                            win.x = Math.round(p.x - offX);
+                            win.y = Math.round(p.y - Math.min(offY, titleBar.height));
+                            Qt.callLater(win.startSystemMove);
+                        });
+                    } else if (win.isMaximized) {
+                        // 最大化：取消动画，立即还原到普通窗口几何并开始拖动
+                        if (geomAnim.running) geomAnim.stop();
+                        win.showNormal();
+                        Qt.callLater(() => {
+                            var w = Math.max(win.minW, win.lastNormalGeom.width);
+                            var h = Math.max(win.minH, win.lastNormalGeom.height);
+                            var offX = Math.max(0, Math.min(w, p.x));
+                            var offY = Math.max(0, Math.min(h, p.y));
+                            win.width = w;
+                            win.height = h;
+                            win.x = Math.round(p.x - offX);
+                            win.y = Math.round(p.y - Math.min(offY, titleBar.height));
+                            Qt.callLater(win.startSystemMove);
+                        });
                     } else {
                         win.startSystemMove();
                     }
@@ -509,8 +1003,11 @@ ApplicationWindow {
         DragHandler {
             target: null
             grabPermissions: PointerHandler.CanTakeOverFromAnything
-            onActiveChanged: if (active)
-                win.startSystemResize(Qt.TopEdge)
+            onActiveChanged: {
+                win._resizeCounter += active ? 1 : -1;
+                if (active)
+                    win.startSystemResize(Qt.TopEdge)
+            }
         }
     }
     Rectangle {
@@ -528,8 +1025,11 @@ ApplicationWindow {
         DragHandler {
             target: null
             grabPermissions: PointerHandler.CanTakeOverFromAnything
-            onActiveChanged: if (active)
-                win.startSystemResize(Qt.BottomEdge)
+            onActiveChanged: {
+                win._resizeCounter += active ? 1 : -1;
+                if (active)
+                    win.startSystemResize(Qt.BottomEdge)
+            }
         }
     }
     Rectangle {
@@ -547,8 +1047,11 @@ ApplicationWindow {
         DragHandler {
             target: null
             grabPermissions: PointerHandler.CanTakeOverFromAnything
-            onActiveChanged: if (active)
-                win.startSystemResize(Qt.LeftEdge)
+            onActiveChanged: {
+                win._resizeCounter += active ? 1 : -1;
+                if (active)
+                    win.startSystemResize(Qt.LeftEdge)
+            }
         }
     }
     Rectangle {
@@ -566,8 +1069,11 @@ ApplicationWindow {
         DragHandler {
             target: null
             grabPermissions: PointerHandler.CanTakeOverFromAnything
-            onActiveChanged: if (active)
-                win.startSystemResize(Qt.RightEdge)
+            onActiveChanged: {
+                win._resizeCounter += active ? 1 : -1;
+                if (active)
+                    win.startSystemResize(Qt.RightEdge)
+            }
         }
     }
 
@@ -584,8 +1090,11 @@ ApplicationWindow {
         }
         DragHandler {
             target: null
-            onActiveChanged: if (active)
-                win.startSystemResize(Qt.TopEdge | Qt.LeftEdge)
+            onActiveChanged: {
+                win._resizeCounter += active ? 1 : -1;
+                if (active)
+                    win.startSystemResize(Qt.TopEdge | Qt.LeftEdge)
+            }
         }
     }
     Rectangle {
@@ -600,8 +1109,11 @@ ApplicationWindow {
         }
         DragHandler {
             target: null
-            onActiveChanged: if (active)
-                win.startSystemResize(Qt.TopEdge | Qt.RightEdge)
+            onActiveChanged: {
+                win._resizeCounter += active ? 1 : -1;
+                if (active)
+                    win.startSystemResize(Qt.TopEdge | Qt.RightEdge)
+            }
         }
     }
     Rectangle {
@@ -616,8 +1128,11 @@ ApplicationWindow {
         }
         DragHandler {
             target: null
-            onActiveChanged: if (active)
-                win.startSystemResize(Qt.BottomEdge | Qt.LeftEdge)
+            onActiveChanged: {
+                win._resizeCounter += active ? 1 : -1;
+                if (active)
+                    win.startSystemResize(Qt.BottomEdge | Qt.LeftEdge)
+            }
         }
     }
     Rectangle {
@@ -632,8 +1147,11 @@ ApplicationWindow {
         }
         DragHandler {
             target: null
-            onActiveChanged: if (active)
-                win.startSystemResize(Qt.BottomEdge | Qt.RightEdge)
+            onActiveChanged: {
+                win._resizeCounter += active ? 1 : -1;
+                if (active)
+                    win.startSystemResize(Qt.BottomEdge | Qt.RightEdge)
+            }
         }
     }
 }

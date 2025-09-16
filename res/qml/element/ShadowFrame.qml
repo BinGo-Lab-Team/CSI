@@ -22,7 +22,7 @@ Item {
     property real dpr: 1
     property real texDpr: Math.max(dpr, Math.ceil(dpr))
 
-    // 根层分层：仅在“非全屏/非最大化”且需要阴影/下采样时开启
+    // 根层分层：仅在"非全屏/非最大化"且需要阴影/下采样时开启
     // 全屏/最大化（squareCorners=true）时强制关闭，避免切换瞬间透明
     layer.enabled: (!root.squareCorners) && ((root.texDpr > root.dpr) || root.wantShadow)
     layer.samples: 4
@@ -57,10 +57,16 @@ Item {
         cache: true
         asynchronous: false
 
-        // 最大化/全屏且不需要阴影时淡出
-        visible: opacity > 0.001
+        // 过渡期间直接隐藏阴影
+        visible: opacity > 0.001 && !root.squareCorners
         opacity: root.wantShadow ? 1 : 0
-        Behavior on opacity { NumberAnimation { duration: 120; easing.type: Easing.OutCubic } }
+        Behavior on opacity { 
+            enabled: !root.squareCorners  // 全屏时禁用渐变
+            NumberAnimation { 
+                duration: 120
+                easing.type: Easing.OutCubic 
+            } 
+        }
 
         z: 0
     }
@@ -69,8 +75,15 @@ Item {
     Rectangle {
         id: frame
         anchors.fill: parent
-        // 全屏/最大化且不展示阴影时，去掉内容边距
+        // 全屏/最大化且不展示阴影时，立即去掉内容边距
         anchors.margins: root.squareCorners && !root.shadowVisibleWhenMaximized ? 0 : root._safeInset
+        Behavior on anchors.margins {
+            enabled: !root.squareCorners  // 全屏时禁用过渡动画
+            NumberAnimation { 
+                duration: 120
+                easing.type: Easing.OutCubic 
+            }
+        }
         color: root.frameColor                  // 必须是不透明色
         z: 1
 

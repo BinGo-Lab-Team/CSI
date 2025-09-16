@@ -44,7 +44,7 @@ int main(int argc, char* argv[]) {
 
 	// 初始化
 	qInstallMessageHandler(fileMessageHandler);         // 接管日志系统
-	QQuickStyle::setStyle("Fusion");                    // 设置默认样式
+	QQuickStyle::setStyle("Material");					// 设置默认样式
 	QApplication app(argc, argv);                       // 创建应用程序对象
 
 	// 加载字体
@@ -56,10 +56,9 @@ int main(int argc, char* argv[]) {
 		app.setFont(font);      // 设置为全局字体
 	}                           // 若加载成功，更改全局默认字体
 
-	// 设置窗口图标
-	app.setWindowIcon(QIcon(":/res/icon/main/construction.svg"));
-	QQmlApplicationEngine engine;                   // 创建 QML 引擎对象
-	engine.loadFromModule("csi", "Main");           // 加载 qml 入口文件
+	app.setWindowIcon(QIcon(":/res/icon/main/construction.svg"));	// 设置窗口图标
+	QQmlApplicationEngine engine;									// 创建 QML 引擎对象
+	engine.loadFromModule("csi", "Main");							// 加载 qml 入口文件
 
 	// 打印错误
 	QObject::connect(&engine, &QQmlApplicationEngine::warnings, [](const QList<QQmlError>& ws) { for (auto& w : ws) qWarning().noquote() << w.toString(); });
