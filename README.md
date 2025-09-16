@@ -1,7 +1,7 @@
 # CSI Project
 
-A DEMO project for Qt 6. I don't know what to do. Should I first get the front end done<br>
-一个针对 Qt 6 的 DEMO 项目，不知道能干什么，先把前端弄好看点
+A DEMO project for Qt 6. I don't know what to do. Should I first get the front end done.
+一个针对 Qt 6 的 DEMO 项目，不知道能干什么，先把前端弄好看点。
 
 ## 开源协议
 
@@ -15,16 +15,16 @@ A DEMO project for Qt 6. I don't know what to do. Should I first get the front e
 
 ## 推荐方案
 
-本项目基于 **Qt 6.9.2** 以及 **C++ 20** 构建<br>
-如若使用低于此版本的 Qt，也最好不要低于 *Qt 6.8* 版本，建议使用 **Qt 6.8** 及以上版本<br>
-推荐使用 **Visual Studio 2022** ，**Qt Creator** 或 **CLion 2025** 作为 IDE
+本项目基于 **Qt 6.9.2** 以及 **C++ 20** 构建。
+如若使用低于此版本的 Qt，也最好不要低于 *Qt 6.8* 版本，建议使用 **Qt 6.8** 及以上版本。
+推荐使用 **Visual Studio 2022** ，**Qt Creator** 或 **CLion 2025** 作为 IDE。
 
 ## 贡献与支持
 
-本项目十分欢迎提交 **问题(Issues)** 与 **合并请求(Pull requests)** <br>
-要是你闲着没事也可以找我聊天
+本项目十分欢迎提交 **问题(Issues)** 与 **合并请求(Pull requests)**！
+要是你闲着没事也可以找我聊天。
 
-联系我：Yan (<BINGO-COMPUTER@outlook.com>)
+联系我：Yan (<BINGO-COMPUTER@outlook.com>).
 
 ## Qt 6 的开源协议
 
