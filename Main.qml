@@ -9,19 +9,22 @@ import QtQuick.Controls.Material
 // ==== 程序窗口 ====
 ApplicationWindow {
     id: win
-    visible: true   // 窗口可见
+    visible: true
     width: 960
     height: 640
     title: win.tr("csi.title", "CSI")
     color: "transparent"
     flags: Qt.Window | Qt.FramelessWindowHint
-    opacity: 1.0  // 添加透明度属性
+    opacity: 1.0
 
     // 构造主题颜色属性
     Theme { 
         id: theme 
         parentWindow: win
     }
+
+    // 测试INI配置读写 - 20250917/PASS
+    /*QtObject { Component.onCompleted: { Settings.write("ttt", "OKI"); console.log("TEST/ttt:", Settings.read("ttt")); } }*/
 
     // 测试配色方案更改 - 20250917/PASS
     /*Timer {
@@ -47,20 +50,15 @@ ApplicationWindow {
             } else if (newVis === Window.Windowed || newVis === Window.AutomaticVisibility) {
                 // 从最小化恢复到可见
                 if (win._lastVis === Window.Minimized) {
-                    _freezeRecord = true; // 避免过渡阶段覆盖 lastNormalGeom
+                    win._freezeRecord = true; // 避免过渡阶段覆盖 lastNormalGeom
                     if (win._preMinVis === Window.Maximized) {
+                        // 目标是回到最大化：先保持冻结，等待真正进入 Maximized 后再解冻
+                        win._pendingUnfreeze = true;
                         Qt.callLater(() => {
                             win.showMaximized();
-                            Qt.callLater(() => { _freezeRecord = false; });
-                        });
-                    } else if (win._preMinVis === Window.FullScreen) {
-                        // 全屏最小化后直接恢复为最大化
-                        Qt.callLater(() => {
-                            win.showMaximized();
-                            Qt.callLater(() => { _freezeRecord = false; });
                         });
                     } else {
-                        // 普通窗口：恢复到保存的几何
+                        // 普通窗口：恢复到保存的几何，并尽快解冻
                         win.x = win.lastNormalGeom.x;
                         win.y = win.lastNormalGeom.y;
                         win.width = win.lastNormalGeom.width;
@@ -69,15 +67,11 @@ ApplicationWindow {
                     }
                     win._preMinVis = -1;
                 }
-            } else if (newVis === Window.FullScreen) {
-                // 某些平台：最小化后从任务栏恢复会直接回到全屏，这里强制切回最大化
-                if (win._lastVis === Window.Minimized) {
-                    _freezeRecord = true;
-                    Qt.callLater(() => {
-                        win.showMaximized();
-                        Qt.callLater(() => { _freezeRecord = false; });
-                    });
-                    win._preMinVis = -1;
+            } else if (newVis === Window.Maximized) {
+                // 已经进入最大化：若存在待解冻请求，现在解冻，避免 Windowed 过渡期写入 lastNormalGeom
+                if (win._pendingUnfreeze) {
+                    win._pendingUnfreeze = false;
+                    Qt.callLater(() => { _freezeRecord = false; });
                 }
             }
             win._lastVis = newVis;
@@ -86,8 +80,8 @@ ApplicationWindow {
 
     // ===== 配置 =====
     property bool isMaximized: visibility === Window.Maximized
-    // 在最大化动画期间（_animTarget === "max"）提前移除圆角与阴影，避免边缘二次过渡；全屏（F11）保持原有时序
-    readonly property bool squareCorners: (win.visibility === Window.FullScreen) || win.isMaximized || (win._animTarget === "max")
+    // 在最大化动画期间（_animTarget === "max"）提前移除圆角与阴影，避免边缘二次过渡
+    readonly property bool squareCorners: win.isMaximized || (win._animTarget === "max")
     property int currentTab: 0
     property int cornerRadius: 12
     property int inset: 18  // 阴影厚度。对于 shadow@q0.png 的基准值为 24
@@ -103,10 +97,12 @@ ApplicationWindow {
     // 进行系统尺寸调整时的计数与状态
     property int _resizeCounter: 0
     readonly property bool isResizing: _resizeCounter > 0
-    // 进入/退出全屏或最小化还原等阶段性操作时，短暂冻结 lastNormalGeom 的自动采样
+    // 进入/退出最小化等阶段性操作时，短暂冻结 lastNormalGeom 的自动采样
     property bool _freezeRecord: false
     // 记录进入最小化前的可见状态，用于还原时恢复到对应状态
     property int _preMinVis: -1
+    // 延迟解冻标记：用于“从最小化恢复到最大化”的两段过渡，等进入 Maximized 后再解冻
+    property bool _pendingUnfreeze: false
 
     // 启动动画参数
     readonly property int startupOffsetY: 20            // 稍微增加初始上偏移
@@ -154,7 +150,7 @@ ApplicationWindow {
     property int _toY: win.y
     property int _toW: win.width
     property int _toH: win.height
-    // 动画目标状态："" | "max" | "fs" | "normal" | "min" | "close"
+    // 动画目标状态："" | "max" | "normal" | "min" | "close"
     property string _animTarget: ""
 
     // 几何和透明度动画
@@ -168,8 +164,6 @@ ApplicationWindow {
         onStopped: {
             if (win._animTarget === "max") {
                 win.visibility = Window.Maximized;
-            } else if (win._animTarget === "fs") {
-                win.showFullScreen();
             } else if (win._animTarget === "min") {
                 win.showMinimized();
                 Qt.callLater(() => {
@@ -190,7 +184,7 @@ ApplicationWindow {
         geomAnim.restart();
     }
 
-    // 停止并复位启动动画，避免与 F11/最大化过渡叠加引起抖动
+    // 停止并复位启动动画，避免与最大化过渡叠加引起抖动
     function _resetStartupFX() {
         if (startupFX.running) {
             startupFX.stop();
@@ -216,6 +210,8 @@ ApplicationWindow {
     function restoreSmooth() {
         if (!win.isMaximized) return;
         _resetStartupFX();
+        // 冻结自动记录，避免临时设置到屏幕大几何时覆盖 lastNormalGeom
+        _freezeRecord = true;
         win.showNormal(); // 必须先切回 Normal，才能自由控制几何
         
         // 从当前最大化位置开始动画，避免闪烁
@@ -224,49 +220,7 @@ ApplicationWindow {
         Qt.callLater(function() {
             win._animTarget = "normal";
             runGeom(lastNormalGeom.x, lastNormalGeom.y, lastNormalGeom.width, lastNormalGeom.height);
-        });
-    }
-
-    // 进入全屏的平滑过渡
-    function enterFullscreenSmooth() {
-        if (win.visibility === Window.FullScreen) return;
-        _resetStartupFX();
-        // 仅在普通窗口状态下记录 lastNormalGeom，避免在“最大化 -> 全屏”时覆盖原有几何
-        if (win.visibility === Window.Windowed || win.visibility === Window.AutomaticVisibility) {
-            lastNormalGeom = Qt.rect(win.x, win.y, win.width, win.height);
-        }
-        
-        // 获取整个屏幕的尺寸（包括任务栏）
-        const g = Qt.rect(0, 0, Screen.width, Screen.height);
-        
-        // 先切换到普通窗口以避免闪烁（不影响 lastNormalGeom）
-        if (win.visibility === Window.Maximized) {
-            win.showNormal();
-        }
-        
-        win._animTarget = "fs";
-        runGeom(g.x, g.y, g.width, g.height);
-    }
-
-    // 退出全屏的平滑过渡（F11）
-    function exitFullscreenSmooth() {
-        if (win.visibility !== Window.FullScreen) return;
-        _resetStartupFX();
-        // 冻结自动记录，避免中间的 showNormal/几何设置污染 lastNormalGeom
-        _freezeRecord = true;
-        win.showNormal();
-        
-        // 先设置到全屏几何，作为动画起点
-        const g = Qt.rect(0, 0, Screen.width, Screen.height);
-        win.x = g.x;
-        win.y = g.y;
-        win.width = g.width;
-        win.height = g.height;
-        
-        Qt.callLater(function() {
-            win._animTarget = "normal";
-            runGeom(lastNormalGeom.x, lastNormalGeom.y, lastNormalGeom.width, lastNormalGeom.height);
-            // 在动画开始后，稍晚一点解除冻结，确保过渡阶段不会写入
+            // 动画已开始，解除冻结，避免中间写入
             Qt.callLater(function(){ _freezeRecord = false; });
         });
     }
@@ -301,7 +255,7 @@ ApplicationWindow {
         closeFX.start();
     }
 
-    // 最大化 <-> 还原（含防抖）
+    // 最大化 <-> 还原
     function _debouncedToggleMaxRestore() {
         const t = Date.now();
         if (t - _lastToggleTS < debounceMs)
@@ -418,14 +372,6 @@ ApplicationWindow {
         return (s === id || s === "") ? fallback : s;
     }
 
-    function toggleFullscreen() {
-        if (win.visibility === Window.FullScreen) {
-            exitFullscreenSmooth();
-        } else {
-            enterFullscreenSmooth();
-        }
-    }
-
     // ==== 快捷键 ====
     Shortcut {
         sequences: [StandardKey.Close]
@@ -434,15 +380,6 @@ ApplicationWindow {
     Shortcut {
         sequences: ["Alt+F10"]
         onActivated: win._debouncedToggleMaxRestore()
-    }
-    Shortcut {
-        sequences: ["F11"]
-        onActivated: win.toggleFullscreen()
-    }
-    Shortcut {
-        sequences: ["Escape"]
-        onActivated: if (win.visibility === Window.FullScreen)
-            win.exitFullscreenSmooth()
     }
     Shortcut {
         sequences: ["Ctrl+1"]
@@ -915,29 +852,14 @@ ApplicationWindow {
                 }
             }
 
-            // 全屏/最大化时鼠标拖动还原
+            // 最大化时鼠标拖动还原
             DragHandler {
                 id: dragTitle
                 target: null
                 grabPermissions: PointerHandler.CanTakeOverFromAnything
                 onActiveChanged: if (active) {
                     const p = dragTitle.centroid.scenePosition;
-                    if (win.visibility === Window.FullScreen) {
-                        // 全屏：直接还原，无动画
-                        if (geomAnim.running) geomAnim.stop();
-                        win.showNormal();
-                        Qt.callLater(() => {
-                            var w = Math.max(win.minW, win.lastNormalGeom.width);
-                            var h = Math.max(win.minH, win.lastNormalGeom.height);
-                            var offX = Math.max(0, Math.min(w, p.x));
-                            var offY = Math.max(0, Math.min(h, p.y));
-                            win.width = w;
-                            win.height = h;
-                            win.x = Math.round(p.x - offX);
-                            win.y = Math.round(p.y - Math.min(offY, titleBar.height));
-                            Qt.callLater(win.startSystemMove);
-                        });
-                    } else if (win.isMaximized) {
+                    if (win.isMaximized) {
                         // 最大化：取消动画，立即还原到普通窗口几何并开始拖动
                         if (geomAnim.running) geomAnim.stop();
                         win.showNormal();
