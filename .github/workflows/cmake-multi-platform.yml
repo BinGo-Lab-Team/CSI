@@ -34,29 +34,37 @@ jobs:
       - name: Setup Ninja
         uses: seanmiddleditch/gha-setup-ninja@v5
 
-      # 用 install-qt-action 安装 Qt 6.8.1（修改为存在的版本）
-      - name: Install Qt 6.8.1
+      # 先检查可用的Qt版本
+      - name: Check available Qt versions
+        run: |
+          python3 -m pip install aqtinstall
+          python3 -m aqt list-qt linux desktop
+
+      # 使用稳定的Qt 6.5.3 LTS版本，移除aqt版本限制
+      - name: Install Qt 6.5.3
         uses: jurplel/install-qt-action@v4
         with:
-          version: '6.8.1'  # 改为存在的版本
+          version: '6.5.3'
           host: 'linux'
           target: 'desktop'
           arch: 'gcc_64'
-          aqtversion: '==3.3.*'
-          # QML 常用模块（按需增减）
-          modules: 'qtdeclarative qttools qtshadertools'
+          # 移除aqtversion限制，让action使用默认版本
+          # aqtversion: '==3.3.*'  # 注释掉这行
+          modules: 'qtdeclarative qttools'  # 简化模块列表
           cache: true
 
       - name: Show Qt paths (debug)
         run: |
           echo "Qt6_DIR=$Qt6_DIR"
-          ls -la "$Qt6_DIR" || true
+          echo "QT_ROOT_DIR=$QT_ROOT_DIR"
+          ls -la "$Qt6_DIR" || echo "Qt6_DIR not found"
+          ls -la "$QT_ROOT_DIR" || echo "QT_ROOT_DIR not found"
 
       - name: Configure (CMake)
         run: |
           cmake -S . -B build -G "${{ env.CMAKE_GENERATOR }}" \
             -DCMAKE_BUILD_TYPE=${{ github.event.inputs.build_type }} \
-            -DCMAKE_PREFIX_PATH="${Qt6_DIR}"
+            -DCMAKE_PREFIX_PATH="${Qt6_DIR:-$QT_ROOT_DIR}"
 
       - name: Build
         run: cmake --build build -j
