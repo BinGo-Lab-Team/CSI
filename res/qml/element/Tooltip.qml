@@ -1,36 +1,36 @@
-// Tooltip.qml - Tooltip×é¼ş
+ï»¿// Tooltip.qml - Tooltipç»„ä»¶
 import QtQuick
 import QtQuick.Controls
 
 Item {
     id: root
-    // Î¨Ò»¶ÔÍâ½Ó¿Ú
+    // å”¯ä¸€å¯¹å¤–æ¥å£
     property string text: ""
 
-    // ÄÚ²¿³£Á¿
+    // å†…éƒ¨å¸¸é‡
     readonly property int _delay:   600
     readonly property int _timeout: 6000
     readonly property int _offset:  4
     readonly property int _fontPx:  12
 
-    // »º´æ¸¸ÏîÎª¶¯Ì¬ÀàĞÍ£¬±ÜÃâ¾²Ì¬ÀàĞÍ¼ì²é±§Ô¹ QQuickItem ÉÏÃ»ÓĞ hovered
+    // ç¼“å­˜çˆ¶é¡¹ä¸ºåŠ¨æ€ç±»å‹ï¼Œé¿å…é™æ€ç±»å‹æ£€æŸ¥æŠ±æ€¨ QQuickItem ä¸Šæ²¡æœ‰ hovered
     property var _host: parent
 
-    // HoverHandler£¨¼´Ê¹ _host ²»ÊÇ Control Ò²ÄÜ¹¤×÷£©
+    // HoverHandlerï¼ˆå³ä½¿ _host ä¸æ˜¯ Control ä¹Ÿèƒ½å·¥ä½œï¼‰
     HoverHandler { id: hh; target: root._host; acceptedDevices: PointerDevice.Mouse }
 
     ToolTip {
         id: tip
-        // ¿É¼ûĞÔ£º¸¸Ïî hovered ÎªÖ÷£»HoverHandler Îª¸¨
+        // å¯è§æ€§ï¼šçˆ¶é¡¹ hovered ä¸ºä¸»ï¼›HoverHandler ä¸ºè¾…
         visible: (root._host && root._host.hovered === true) || hh.hovered
         delay:   root._delay
         timeout: root._timeout
 
-        // Î»ÖÃ£º¸¸ÏîÏÂ·½Ë®Æ½¾ÓÖĞ
+        // ä½ç½®ï¼šçˆ¶é¡¹ä¸‹æ–¹æ°´å¹³å±…ä¸­
         x: root._host ? (root._host.width  - tip.implicitWidth) / 2 : 0
         y: root._host ? (root._host.height + root._offset) : 0
 
-        // »Òµ×£¬Ğ¡×Ö
+        // ç°åº•ï¼Œå°å­—
         contentItem: Text {
             text: root.text
             font.pixelSize: root._fontPx
@@ -45,8 +45,8 @@ Item {
             opacity: 0.92
         }
 
-        // µ­Èëµ­³ö
-        enter: Transition { NumberAnimation { property: "opacity"; from: 0; to: 1; duration: 200 } }
-        exit:  Transition { NumberAnimation { property: "opacity"; from: 1; to: 0; duration: 200 } }
+        // æ·¡å…¥æ·¡å‡º
+        enter: Transition { NumberAnimation { property: "opacity"; from: 0; to: 1; duration: 100 } }
+        exit:  Transition { NumberAnimation { property: "opacity"; from: 1; to: 0; duration: 100 } }
     }
 }
