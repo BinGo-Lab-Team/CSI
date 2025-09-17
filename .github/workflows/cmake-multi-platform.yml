@@ -1,0 +1,57 @@
+name: QML CMake Linux Build
+
+on:
+  workflow_dispatch:
+    inputs:
+      build_type:
+        description: 'CMake 构建类型'
+        required: true
+        default: 'Release'
+        type: choice
+        options: [Release, Debug, RelWithDebInfo]
+
+env:
+  CMAKE_GENERATOR: Ninja
+  CMAKE_BUILD_PARALLEL_LEVEL: 4
+
+jobs:
+  linux:
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Ninja
+        uses: seanmiddleditch/gha-setup-ninja@v5
+
+      - name: Install Qt 6.9.2 (Linux)
+        uses: jurplel/install-qt-action@v4
+        with:
+          version: '6.9.2'
+          host: 'linux'
+          target: 'desktop'
+          arch: 'gcc_64'
+          cache: true
+
+      - name: Configure (CMake)
+        run: |
+          cmake -S . -B build -G "${{ env.CMAKE_GENERATOR }}" \
+            -DCMAKE_BUILD_TYPE=${{ github.event.inputs.build_type }} \
+            -DCMAKE_PREFIX_PATH="${Qt6_DIR}"
+
+      - name: Build
+        run: cmake --build build -j
+
+      # 如需跑测试，确保项目启用 CTest
+      - name: Test (optional)
+        if: ${{ github.event.inputs.build_type != 'Release' }}
+        run: |
+          cd build
+          ctest --output-on-failure || true
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: linux-${{ github.event.inputs.build_type }}
+          path: build/**
+          if-no-files-found: error
