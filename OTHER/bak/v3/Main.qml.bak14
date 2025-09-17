@@ -1,25 +1,25 @@
-// Main.qml - Ç°¶ËÈë¿Ú
+ï»¿// Main.qml - å‰ç«¯å…¥å£
 pragma ComponentBehavior: Bound
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
 import QtMultimedia
 
-// ==== ³ÌĞò´°¿Ú ====
+// ==== ç¨‹åºçª—å£ ====
 ApplicationWindow {
     id: win
-    visible: true   // ´°¿Ú¿É¼û
+    visible: true   // çª—å£å¯è§
     width: 960
     height: 640
     title: win.tr("csi.title", "CSI")
     color: "transparent"
     flags: Qt.Window | Qt.FramelessWindowHint
-    opacity: 1.0  // Ìí¼ÓÍ¸Ã÷¶ÈÊôĞÔ
+    opacity: 1.0  // æ·»åŠ é€æ˜åº¦å±æ€§
 
-    // ½öÔÚ´°¿ÚÍêÈ«²»¿É¼ûÊ±ÔİÍ£Á÷¶¯Ğ§¹û
+    // ä»…åœ¨çª—å£å®Œå…¨ä¸å¯è§æ—¶æš‚åœæµåŠ¨æ•ˆæœ
     property bool flowFXRunning: visibility !== Window.Hidden
 
-    // ¼àÌı¿É¼ûĞÔ±ä»¯
+    // ç›‘å¬å¯è§æ€§å˜åŒ–
     Connections {
         target: win
         function onVisibilityChanged(newVis) {
@@ -27,7 +27,7 @@ ApplicationWindow {
                 win.isMaximized = true;
             } else if (newVis === Window.Windowed || newVis === Window.AutomaticVisibility) {
                 win.isMaximized = false;
-                // ´Ó×îĞ¡»¯»¹Ô­Ê±£¬È·±£´°¿ÚÎ»ÖÃºÍ´óĞ¡ÕıÈ·
+                // ä»æœ€å°åŒ–è¿˜åŸæ—¶ï¼Œç¡®ä¿çª—å£ä½ç½®å’Œå¤§å°æ­£ç¡®
                 if (win._lastVis === Window.Minimized) {
                     win.x = win.lastNormalGeom.x;
                     win.y = win.lastNormalGeom.y;
@@ -35,69 +35,69 @@ ApplicationWindow {
                     win.height = win.lastNormalGeom.height;
                 }
             } else if (newVis === Window.Minimized && !geomAnim.running) {
-                // Èç¹û²»ÊÇÍ¨¹ı¶¯»­×îĞ¡»¯£¬Ö±½ÓÉèÖÃ²»Í¸Ã÷¶È
+                // å¦‚æœä¸æ˜¯é€šè¿‡åŠ¨ç”»æœ€å°åŒ–ï¼Œç›´æ¥è®¾ç½®ä¸é€æ˜åº¦
                 win.opacity = 1.0;
             }
             win._lastVis = newVis;
         }
     }
 
-    // ===== ÅäÖÃ =====
+    // ===== é…ç½® =====
     property bool isMaximized: visibility === Window.Maximized
     readonly property bool squareCorners: (win.visibility === Window.FullScreen) || win.isMaximized
     property int currentTab: 0
     property int cornerRadius: 12
     property int inset: 18
 
-    // ÓÃÓÚ»¹Ô­Ê±µÄ×îĞ¡³ß´çÏÂÏŞ£¬±ÜÃâÌøµã
+    // ç”¨äºè¿˜åŸæ—¶çš„æœ€å°å°ºå¯¸ä¸‹é™ï¼Œé¿å…è·³ç‚¹
     property int minW: 400
     property int minH: 300
 
-    // »¹Ô­Ê±ĞèÒªµÄÉÏÒ»´Î·ÇÈ«ÆÁ´°¿Ú¼¸ºÎ£¨³ÖĞø²ÉÑù£©
+    // è¿˜åŸæ—¶éœ€è¦çš„ä¸Šä¸€æ¬¡éå…¨å±çª—å£å‡ ä½•ï¼ˆæŒç»­é‡‡æ ·ï¼‰
     property rect lastNormalGeom: Qt.rect(x, y, width, height)
     property int _lastVis: Window.AutomaticVisibility
 
-    // ½øĞĞÏµÍ³³ß´çµ÷ÕûÊ±µÄ¼ÆÊıÓë×´Ì¬
+    // è¿›è¡Œç³»ç»Ÿå°ºå¯¸è°ƒæ•´æ—¶çš„è®¡æ•°ä¸çŠ¶æ€
     property int _resizeCounter: 0
     readonly property bool isResizing: _resizeCounter > 0
 
-    // Æô¶¯µ¯Ìø¶¯»­Ïà¹Ø
+    // å¯åŠ¨å¼¹è·³åŠ¨ç”»ç›¸å…³
     property bool _startupBouncing: false
     property int _startupOrigY: 0
-    readonly property int startupBounceDy: 18    // µ¯Ìø·ù¶È£¨ÏñËØ£©£¬²»ÒË¹ı´ó
-    readonly property int startupDelayMs: 100    // ¿ªÊ¼Ç°µÄÇáÎ¢ÑÓ³Ù
+    readonly property int startupBounceDy: 18    // å¼¹è·³å¹…åº¦ï¼ˆåƒç´ ï¼‰ï¼Œä¸å®œè¿‡å¤§
+    readonly property int startupDelayMs: 100    // å¼€å§‹å‰çš„è½»å¾®å»¶è¿Ÿ
 
-    // Ö»Òª´¦ÓÚ Windowed/AutomaticVisibility£¬¾Í³ÖĞøÎ¬»¤ lastNormal
+    // åªè¦å¤„äº Windowed/AutomaticVisibilityï¼Œå°±æŒç»­ç»´æŠ¤ lastNormal
     function _maybeRecordIfNormal() {
         if ((win.visibility === Window.AutomaticVisibility || win.visibility === Window.Windowed) && !geomAnim.running && !win._startupBouncing) {
             lastNormalGeom = Qt.rect(win.x, win.y, win.width, win.height);
         }
     }
 
-    // °ó¶¨¼¸ºÎ±ä»¯£¬×Ô¶¯¼ÇÂ¼
+    // ç»‘å®šå‡ ä½•å˜åŒ–ï¼Œè‡ªåŠ¨è®°å½•
     onXChanged: _maybeRecordIfNormal()
     onYChanged: _maybeRecordIfNormal()
     onWidthChanged: _maybeRecordIfNormal()
     onHeightChanged: _maybeRecordIfNormal()
 
     readonly property int durFast: 80
-    readonly property int durMed: 260 // ¶¯»­Ê±³¤
+    readonly property int durMed: 260 // åŠ¨ç”»æ—¶é•¿
     readonly property int durSlow: 160
-    readonly property int debounceMs: 300 // ·À¶¶Ê±¼äÓ¦´óÓÚ¶¯»­Ê±³¤
+    readonly property int debounceMs: 300 // é˜²æŠ–æ—¶é—´åº”å¤§äºåŠ¨ç”»æ—¶é•¿
     property double _lastToggleTS: 0
 
-    // ¶¯»­Ä¿±êÖµ
+    // åŠ¨ç”»ç›®æ ‡å€¼
     property int _toX: win.x
     property int _toY: win.y
     property int _toW: win.width
     property int _toH: win.height
-    // ¶¯»­Ä¿±ê×´Ì¬£º"" | "max" | "fs" | "normal" | "min" | "close"
+    // åŠ¨ç”»ç›®æ ‡çŠ¶æ€ï¼š"" | "max" | "fs" | "normal" | "min" | "close"
     property string _animTarget: ""
 
-    // ÓÃÓÚ×îĞ¡»¯¶¯»­µÄÄ¿±êÎ»ÖÃ£¨¸üÎÂºÍµÄÒÆ¶¯¾àÀë£©
+    // ç”¨äºæœ€å°åŒ–åŠ¨ç”»çš„ç›®æ ‡ä½ç½®ï¼ˆæ›´æ¸©å’Œçš„ç§»åŠ¨è·ç¦»ï¼‰
     property point _taskbarPos: Qt.point(x, y + height * 0.3)
 
-    // ¼¸ºÎºÍÍ¸Ã÷¶È¶¯»­
+    // å‡ ä½•å’Œé€æ˜åº¦åŠ¨ç”»
     ParallelAnimation {
         id: geomAnim
         NumberAnimation { target: win; property: "x";      duration: win.durMed; easing.type: Easing.OutCubic; to: win._toX }
@@ -105,7 +105,7 @@ ApplicationWindow {
         NumberAnimation { target: win; property: "width";  duration: win.durMed; easing.type: Easing.OutCubic; to: win._toW }
         NumberAnimation { target: win; property: "height"; duration: win.durMed; easing.type: Easing.OutCubic; to: win._toH }
         NumberAnimation { target: win; property: "opacity"; duration: win.durMed; easing.type: Easing.OutCubic; to: win._animTarget === "min" || win._animTarget === "close" ? 0 : 1 }
-        onStarted: {}  // ÒÆ³ı¶Ô flowFXRunning µÄĞŞ¸Ä
+        onStarted: {}  // ç§»é™¤å¯¹ flowFXRunning çš„ä¿®æ”¹
         onStopped: {
             if (win._animTarget === "max") {
                 win.visibility = Window.Maximized;
@@ -140,13 +140,13 @@ ApplicationWindow {
         runGeom(g.x, g.y, g.width, g.height);
     }
 
-    // ½öÓÃÓÚ¡°×î´ó»¯ -> »¹Ô­¡±µÄÆ½»¬¹ı¶É
+    // ä»…ç”¨äºâ€œæœ€å¤§åŒ– -> è¿˜åŸâ€çš„å¹³æ»‘è¿‡æ¸¡
     function restoreSmooth() {
         if (!win.isMaximized) return;
         win.isMaximized = false;
-        win.showNormal(); // ±ØĞëÏÈÇĞ»Ø Normal£¬²ÅÄÜ×ÔÓÉ¿ØÖÆ¼¸ºÎ
+        win.showNormal(); // å¿…é¡»å…ˆåˆ‡å› Normalï¼Œæ‰èƒ½è‡ªç”±æ§åˆ¶å‡ ä½•
         
-        // ´Óµ±Ç°×î´ó»¯Î»ÖÃ¿ªÊ¼¶¯»­£¬±ÜÃâÉÁË¸
+        // ä»å½“å‰æœ€å¤§åŒ–ä½ç½®å¼€å§‹åŠ¨ç”»ï¼Œé¿å…é—ªçƒ
         const g = Qt.rect(0, 0, Screen.desktopAvailableWidth, Screen.desktopAvailableHeight);
         win.x = g.x; win.y = g.y; win.width = g.width; win.height = g.height;
         Qt.callLater(function() {
@@ -155,15 +155,15 @@ ApplicationWindow {
         });
     }
 
-    // ½øÈëÈ«ÆÁµÄÆ½»¬¹ı¶É
+    // è¿›å…¥å…¨å±çš„å¹³æ»‘è¿‡æ¸¡
     function enterFullscreenSmooth() {
         if (win.visibility === Window.FullScreen) return;
         lastNormalGeom = Qt.rect(win.x, win.y, win.width, win.height);
         
-        // »ñÈ¡Õû¸öÆÁÄ»µÄ³ß´ç£¨°üÀ¨ÈÎÎñÀ¸£©
+        // è·å–æ•´ä¸ªå±å¹•çš„å°ºå¯¸ï¼ˆåŒ…æ‹¬ä»»åŠ¡æ ï¼‰
         const g = Qt.rect(0, 0, Screen.width, Screen.height);
         
-        // ÏÈÇĞ»»µ½ÆÕÍ¨´°¿ÚÒÔ±ÜÃâÉÁË¸
+        // å…ˆåˆ‡æ¢åˆ°æ™®é€šçª—å£ä»¥é¿å…é—ªçƒ
         if (win.visibility === Window.Maximized) {
             win.showNormal();
         }
@@ -172,12 +172,12 @@ ApplicationWindow {
         runGeom(g.x, g.y, g.width, g.height);
     }
 
-    // ÍË³öÈ«ÆÁµÄÆ½»¬¹ı¶É£¨F11£©
+    // é€€å‡ºå…¨å±çš„å¹³æ»‘è¿‡æ¸¡ï¼ˆF11ï¼‰
     function exitFullscreenSmooth() {
         if (win.visibility !== Window.FullScreen) return;
         win.showNormal();
         
-        // ÏÈÉèÖÃµ½È«ÆÁ¼¸ºÎ£¬×÷Îª¶¯»­Æğµã
+        // å…ˆè®¾ç½®åˆ°å…¨å±å‡ ä½•ï¼Œä½œä¸ºåŠ¨ç”»èµ·ç‚¹
         const g = Qt.rect(0, 0, Screen.width, Screen.height);
         win.x = g.x;
         win.y = g.y;
@@ -190,33 +190,33 @@ ApplicationWindow {
         });
     }
 
-    // ×îĞ¡»¯¶¯»­
+    // æœ€å°åŒ–åŠ¨ç”»
     function minimizeSmooth() {
         if (win.visibility === Window.Minimized) return;
         win._animTarget = "min";
-        // ±£´æµ±Ç°¼¸ºÎĞÅÏ¢ÓÃÓÚ»¹Ô­
+        // ä¿å­˜å½“å‰å‡ ä½•ä¿¡æ¯ç”¨äºè¿˜åŸ
         if (win.visibility === Window.Windowed || win.visibility === Window.AutomaticVisibility) {
             lastNormalGeom = Qt.rect(win.x, win.y, win.width, win.height);
         }
         
-        // ¼ÆËãÈÎÎñÀ¸Î»ÖÃ£¨ÆÁÄ»µ×²¿£©
+        // è®¡ç®—ä»»åŠ¡æ ä½ç½®ï¼ˆå±å¹•åº•éƒ¨ï¼‰
         const screenBottom = Screen.desktopAvailableHeight;
         
-        // Ö»ÏòÏÂÆ½ÒÆ²¢µ­³ö£¬²»¸Ä±ä´óĞ¡
-        const moveDistance = Math.min((screenBottom - y) * 0.3, 100);  // ÒÆ¶¯¾àÀëÏŞÖÆÔÚ100ÏñËØÒÔÄÚ
+        // åªå‘ä¸‹å¹³ç§»å¹¶æ·¡å‡ºï¼Œä¸æ”¹å˜å¤§å°
+        const moveDistance = Math.min((screenBottom - y) * 0.3, 100);  // ç§»åŠ¨è·ç¦»é™åˆ¶åœ¨100åƒç´ ä»¥å†…
         runGeom(x, y + moveDistance, width, height);
     }
 
-    // ¹Ø±Õ¶¯»­
+    // å…³é—­åŠ¨ç”»
     function closeSmooth() {
         win._animTarget = "close";
-        // ÏòÖĞĞÄËõĞ¡²¢µ­³ö
+        // å‘ä¸­å¿ƒç¼©å°å¹¶æ·¡å‡º
         const centerX = x + width/2;
         const centerY = y + height/2;
         runGeom(centerX - width/4, centerY - height/4, width/2, height/2);
     }
 
-    // ×î´ó»¯ <-> »¹Ô­£¨º¬·À¶¶£©
+    // æœ€å¤§åŒ– <-> è¿˜åŸï¼ˆå«é˜²æŠ–ï¼‰
     function _debouncedToggleMaxRestore() {
         const t = Date.now();
         if (t - _lastToggleTS < debounceMs)
@@ -226,7 +226,7 @@ ApplicationWindow {
         win.isMaximized ? restoreSmooth() : maximizeSmooth();
     }
 
-    // Æô¶¯Ê±ÇáÎ¢µ¯Ìø£¨ÉÏµ¯Ò»ÏÂÔÙÂä»Ø£©
+    // å¯åŠ¨æ—¶è½»å¾®å¼¹è·³ï¼ˆä¸Šå¼¹ä¸€ä¸‹å†è½å›ï¼‰
     function startStartupBounce() {
         if (startupAnim.running) return;
         if (!(win.visibility === Window.AutomaticVisibility || win.visibility === Window.Windowed)) return;
@@ -236,12 +236,12 @@ ApplicationWindow {
         startupAnim.start();
     }
 
-    // »ñÈ¡µ±Ç° DPR
+    // è·å–å½“å‰ DPR
     readonly property real dpr: Screen.devicePixelRatio
     readonly property int hit: Math.round(6 * dpr)
     readonly property int cornerHit: Math.round(10 * dpr)
 
-    // ²¥·ÅÆô¶¯ÒôÀÖ
+    // æ’­æ”¾å¯åŠ¨éŸ³ä¹
     property bool enableStartupSound: true
     MediaPlayer {
         id: startupPlayer
@@ -261,14 +261,14 @@ ApplicationWindow {
         }
     }
 
-    // Æô¶¯µ¯Ìø¶¯»­£º¶¨ÒåÓë´¥·¢
+    // å¯åŠ¨å¼¹è·³åŠ¨ç”»ï¼šå®šä¹‰ä¸è§¦å‘
     SequentialAnimation {
         id: startupAnim
         running: false
         onStarted: win._startupBouncing = true
         onStopped: {
             win._startupBouncing = false;
-            // Ğ£Õıµ½ÆğÊ¼Î»ÖÃ£¬±ÜÃâÀÛ¼ÆÎó²î
+            // æ ¡æ­£åˆ°èµ·å§‹ä½ç½®ï¼Œé¿å…ç´¯è®¡è¯¯å·®
             win.y = win._startupOrigY;
         }
         NumberAnimation { id: animUp; target: win; property: "y"; duration: 140; easing.type: Easing.OutCubic }
@@ -282,7 +282,7 @@ ApplicationWindow {
         onTriggered: win.startStartupBounce()
     }
 
-    // ==== Ö÷Ìâ ====
+    // ==== ä¸»é¢˜ ====
     Theme {
         id: theme
     }
@@ -307,7 +307,7 @@ ApplicationWindow {
     }
 
 
-    // ==== ¿ì½İ¼ü ====
+    // ==== å¿«æ·é”® ====
     Shortcut {
         sequences: [StandardKey.Close]
         onActivated: win.closeSmooth()
@@ -334,7 +334,7 @@ ApplicationWindow {
         onActivated: win.currentTab = 1
     }
 
-    // ==== ´°¿Ú ====
+    // ==== çª—å£ ====
     ShadowFrame {
         id: shell
         anchors.fill: parent
@@ -344,7 +344,7 @@ ApplicationWindow {
         squareCorners: win.squareCorners
         frameColor: win.palette.window
 
-        // ===== ±êÌâÀ¸ =====
+        // ===== æ ‡é¢˜æ  =====
         Rectangle {
             id: titleBar
             height: 56
@@ -355,7 +355,7 @@ ApplicationWindow {
             color: "transparent"
             z: 3
 
-            // Á÷¶¯±êÌâÀ¸±³¾°
+            // æµåŠ¨æ ‡é¢˜æ èƒŒæ™¯
             Canvas {
                 id: flowFX
                 anchors.fill: parent
@@ -367,7 +367,7 @@ ApplicationWindow {
                 property real pxPerSecond: 120
                 property real dpr: Screen.devicePixelRatio
 
-                // ÀÛ¼Æ½ø¶È£¨Ãë£©£¬´úÌæ¾ø¶ÔÊ±¼ä£¬Ö§³ÖÔÚÀ­ÉìÊ±ÔİÍ£
+                // ç´¯è®¡è¿›åº¦ï¼ˆç§’ï¼‰ï¼Œä»£æ›¿ç»å¯¹æ—¶é—´ï¼Œæ”¯æŒåœ¨æ‹‰ä¼¸æ—¶æš‚åœ
                 property real progressSec: 0
                 property real _lastTick: 0
 
@@ -380,14 +380,14 @@ ApplicationWindow {
                     id: raf
                     interval: 33
                     repeat: true
-                    running: win.visibility !== Window.Hidden  // Ö»ÔÚ´°¿Ú´¦ÓÚºóÌ¨Ê±ÔİÍ£
+                    running: win.visibility !== Window.Hidden  // åªåœ¨çª—å£å¤„äºåå°æ—¶æš‚åœ
                     onTriggered: {
                         const now = flowFX._nowSec();
                         let dt = now - flowFX._lastTick;
                         flowFX._lastTick = now;
-                        // ÔÚÀ­Éì¹ı³ÌÖĞ²»ÍÆ½ø½ø¶È£»»Ö¸´Ê±±ÜÃâÒ»´ÎĞÔÌø¶¯£¬ÏŞÖÆ×î´ó²½³¤
+                        // åœ¨æ‹‰ä¼¸è¿‡ç¨‹ä¸­ä¸æ¨è¿›è¿›åº¦ï¼›æ¢å¤æ—¶é¿å…ä¸€æ¬¡æ€§è·³åŠ¨ï¼Œé™åˆ¶æœ€å¤§æ­¥é•¿
                         if (!win.isResizing) {
-                            dt = Math.max(0, Math.min(dt, 0.08)); // ÏŞÖÆµ½ ~80ms
+                            dt = Math.max(0, Math.min(dt, 0.08)); // é™åˆ¶åˆ° ~80ms
                             flowFX.progressSec += dt;
                         }
                         flowFX.requestPaint();
@@ -402,7 +402,7 @@ ApplicationWindow {
                 }
 
                 onVisibleChanged: {
-                    // ÖØÖÃ½ÚÅÄ£¬±ÜÃâ¿É¼ûĞÔ±ä»¯´øÀ´µÄ´ó²½³¤
+                    // é‡ç½®èŠ‚æ‹ï¼Œé¿å…å¯è§æ€§å˜åŒ–å¸¦æ¥çš„å¤§æ­¥é•¿
                     flowFX._lastTick = flowFX._nowSec();
                     requestPaint();
                 }
@@ -436,7 +436,7 @@ ApplicationWindow {
                         cols.push(cols[0]);
 
                     const bw = Math.max(1, bandWidth);
-                    const elapsed = progressSec; // Ê¹ÓÃÀÛ¼Æ½ø¶È£¬±ÜÃâÔİÍ£ÆÚ¼äÌø±ä
+                    const elapsed = progressSec; // ä½¿ç”¨ç´¯è®¡è¿›åº¦ï¼Œé¿å…æš‚åœæœŸé—´è·³å˜
                     const offsetPx = (elapsed * pxPerSecond) % bw;
 
                     let startX = -offsetPx - bw;
@@ -455,7 +455,7 @@ ApplicationWindow {
                 }
             }
 
-            // ¡ª¡ª ×ó²à±êÌâ ¡ª__
+            // â€”â€” å·¦ä¾§æ ‡é¢˜ â€”__
             Label {
                 id: titleText
                 text: win.tr("csi.title", "CSI")
@@ -468,7 +468,7 @@ ApplicationWindow {
                 z: 1
             }
 
-            // ¡ª¡ª ÖĞ²¿µ¼º½ ¡ª__
+            // â€”â€” ä¸­éƒ¨å¯¼èˆª â€”__
             Row {
                 id: navCenter
                 spacing: 10
@@ -478,7 +478,7 @@ ApplicationWindow {
 
                 ToolButton {
                     id: tabStart
-                    text: win.tr("csi.tab.start", "Æô¶¯")
+                    text: win.tr("csi.tab.start", "å¯åŠ¨")
                     checkable: true
                     checked: win.currentTab === 0
                     padding: 10
@@ -507,7 +507,7 @@ ApplicationWindow {
 
                 ToolButton {
                     id: tabSettings
-                    text: win.tr("csi.tab.settings", "ÉèÖÃ")
+                    text: win.tr("csi.tab.settings", "è®¾ç½®")
                     checkable: true
                     checked: win.currentTab === 1
                     padding: 10
@@ -535,7 +535,7 @@ ApplicationWindow {
                 }
             }
 
-            // ¡ª¡ª ÓÒÉÏ½Ç´°¿Ú¿ØÖÆ ¡ª__
+            // â€”â€” å³ä¸Šè§’çª—å£æ§åˆ¶ â€”__
             Row {
                 id: rowControls
                 spacing: 6
@@ -602,7 +602,7 @@ ApplicationWindow {
                 }
             }
 
-            // È«ÆÁ/×î´ó»¯Ê±Êó±êÍÏ¶¯»¹Ô­
+            // å…¨å±/æœ€å¤§åŒ–æ—¶é¼ æ ‡æ‹–åŠ¨è¿˜åŸ
             DragHandler {
                 id: dragTitle
                 target: null
@@ -610,7 +610,7 @@ ApplicationWindow {
                 onActiveChanged: if (active) {
                     const p = dragTitle.centroid.scenePosition;
                     if (win.visibility === Window.FullScreen) {
-                        // È«ÆÁ£ºÖ±½Ó»¹Ô­£¬ÎŞ¶¯»­
+                        // å…¨å±ï¼šç›´æ¥è¿˜åŸï¼Œæ— åŠ¨ç”»
                         if (geomAnim.running) geomAnim.stop();
                         win.showNormal();
                         Qt.callLater(() => {
@@ -625,7 +625,7 @@ ApplicationWindow {
                             Qt.callLater(win.startSystemMove);
                         });
                     } else if (win.isMaximized) {
-                        // ×î´ó»¯£ºÈ¡Ïû¶¯»­£¬Á¢¼´»¹Ô­µ½ÆÕÍ¨´°¿Ú¼¸ºÎ²¢¿ªÊ¼ÍÏ¶¯
+                        // æœ€å¤§åŒ–ï¼šå–æ¶ˆåŠ¨ç”»ï¼Œç«‹å³è¿˜åŸåˆ°æ™®é€šçª—å£å‡ ä½•å¹¶å¼€å§‹æ‹–åŠ¨
                         if (geomAnim.running) geomAnim.stop();
                         win.isMaximized = false;
                         win.showNormal();
@@ -651,7 +651,7 @@ ApplicationWindow {
             }
         }
 
-        // ===== ÄÚÈİÇø =====
+        // ===== å†…å®¹åŒº =====
         StackLayout {
             id: stack
             anchors.left: parent.left
@@ -675,7 +675,7 @@ ApplicationWindow {
         }
     }
 
-    // ===== Ëõ·Å±ßÔµ =====
+    // ===== ç¼©æ”¾è¾¹ç¼˜ =====
     Rectangle {
         anchors {
             left: parent.left
@@ -765,7 +765,7 @@ ApplicationWindow {
         }
     }
 
-    // ===== ËÄ¸ö½Ç =====
+    // ===== å››ä¸ªè§’ =====
     Rectangle {
         x: 0
         y: 0
