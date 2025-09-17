@@ -34,11 +34,11 @@ jobs:
       - name: Setup Ninja
         uses: seanmiddleditch/gha-setup-ninja@v5
 
-      # 用 install-qt-action 安装 Qt 6.9.2，并钉住 aqt 3.3.x
-      - name: Install Qt 6.9.2
+      # 用 install-qt-action 安装 Qt 6.8.1（修改为存在的版本）
+      - name: Install Qt 6.8.1
         uses: jurplel/install-qt-action@v4
         with:
-          version: '6.9.2'
+          version: '6.8.1'  # 改为存在的版本
           host: 'linux'
           target: 'desktop'
           arch: 'gcc_64'
