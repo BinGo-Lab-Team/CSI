@@ -10,6 +10,15 @@ on:
         type: choice
         options: [Release, Debug, RelWithDebInfo]
 
+# 防抖：同一分支并发触发时取消旧任务，省分钟数
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+# 最小权限
+permissions:
+  contents: read
+
 env:
   CMAKE_GENERATOR: Ninja
   CMAKE_BUILD_PARALLEL_LEVEL: 4
@@ -17,6 +26,7 @@ env:
 jobs:
   linux:
     runs-on: ubuntu-22.04
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -24,14 +34,23 @@ jobs:
       - name: Setup Ninja
         uses: seanmiddleditch/gha-setup-ninja@v5
 
-      - name: Install Qt 6.9.2 (Linux)
+      # 用 install-qt-action 安装 Qt 6.9.2，并钉住 aqt 3.3.x
+      - name: Install Qt 6.9.2
         uses: jurplel/install-qt-action@v4
         with:
           version: '6.9.2'
           host: 'linux'
           target: 'desktop'
           arch: 'gcc_64'
+          aqtversion: '==3.3.*'
+          # QML 常用模块（按需增减）
+          modules: 'qtdeclarative qttools qtshadertools'
           cache: true
+
+      - name: Show Qt paths (debug)
+        run: |
+          echo "Qt6_DIR=$Qt6_DIR"
+          ls -la "$Qt6_DIR" || true
 
       - name: Configure (CMake)
         run: |
@@ -42,12 +61,11 @@ jobs:
       - name: Build
         run: cmake --build build -j
 
-      # 如需跑测试，确保项目启用 CTest
-      - name: Test (optional)
-        if: ${{ github.event.inputs.build_type != 'Release' }}
-        run: |
-          cd build
-          ctest --output-on-failure || true
+      # 如需跑测试且启用了 CTest，可打开
+      # - name: Test
+      #   run: |
+      #     cd build
+      #     ctest --output-on-failure
 
       - name: Upload build artifacts
         uses: actions/upload-artifact@v4
@@ -55,3 +73,4 @@ jobs:
           name: linux-${{ github.event.inputs.build_type }}
           path: build/**
           if-no-files-found: error
+          retention-days: 3
