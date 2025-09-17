@@ -1,4 +1,4 @@
-# -*- coding: utf-8 -*-
+﻿# -*- coding: utf-8 -*-
 import gi
 gi.require_version('Gimp','3.0')
 gi.require_version('Gegl','0.4')
