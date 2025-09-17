@@ -37,6 +37,7 @@ qt_policy(SET QTP0004 NEW)  # 强制生成 qmldir 支持
 set(APP_SOURCES 
     main.cpp
     src/backend.cpp
+    src/settings.cpp
 )
 
 # Windows 下的程序属性
@@ -57,6 +58,7 @@ add_compile_options(
 # IDE 头文件支持 （不参与编译）
 target_sources(${PROJECT_NAME} PRIVATE
     includes/backend.h
+    includes/settings.h
 )
 # 指定头文件搜索目录（重要）
 target_include_directories(${PROJECT_NAME} PRIVATE "includes")
@@ -75,6 +77,7 @@ qt_add_qml_module(${PROJECT_NAME}
         res/qml/element/Tooltip.qml
     SOURCES 
         includes/backend.h src/backend.cpp
+        includes/settings.h src/settings.cpp
 )
 # respkg - 资源文件导入
 qt_add_resources(${PROJECT_NAME} "respkg"

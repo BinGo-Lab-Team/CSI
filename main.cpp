@@ -13,8 +13,12 @@
 #include <QFontDatabase>
 #include <QFont>
 #include <QQuickWindow>
+#include <QFileInfo>
+#include <QDir>
+#include <qqml.h>
 // ==== 自定义头文件 ====
 #include "backend.h"
+#include "settings.h"
 
 // ==== 日志处理函数 ====
 static void fileMessageHandler(QtMsgType type, const QMessageLogContext& ctx, const QString& msg) {
@@ -54,15 +58,16 @@ int main(int argc, char* argv[]) {
 		QFont font(family);
 		font.setPixelSize(14);  // 默认字号
 		app.setFont(font);      // 设置为全局字体
-	}                           // 若加载成功，更改全局默认字体
+	}
 
-	app.setWindowIcon(QIcon(":/res/icon/main/construction.svg"));	// 设置窗口图标
-	QQmlApplicationEngine engine;									// 创建 QML 引擎对象
-	engine.loadFromModule("csi", "Main");							// 加载 qml 入口文件
+	app.setWindowIcon(QIcon(":/res/icon/main/construction.svg"));			// 设置程序图标
+	QQmlApplicationEngine engine;											// 构造 engine 对象
+	if (!Settings::instance()) Settings* settings = new Settings(&engine);	// 构造 .ini 配置文件操作函数
+	engine.loadFromModule("csi", "Main");									// 加载 Main.qml 前端入口
 
-	// 打印错误
+	// 打印 QML 加载时的警告
 	QObject::connect(&engine, &QQmlApplicationEngine::warnings, [](const QList<QQmlError>& ws) { for (auto& w : ws) qWarning().noquote() << w.toString(); });
-	if (engine.rootObjects().isEmpty()) return -1;      // 若初始化失败，退出程序
+	if (engine.rootObjects().isEmpty()) return -1;		// 若初始化失败，退出程序
 
 	// 进入事件循环
 	return app.exec();
