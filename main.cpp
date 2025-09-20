@@ -1,52 +1,62 @@
 ﻿// main.cpp - 程序入口
 #include <QApplication>
 #include <QQmlApplicationEngine>
-#include <QLoggingCategory>
 #include <QFile>
-#include <QTextStream>
-#include <QDateTime>
 #include <QMutex>
-#include <QIcon>
-#include <QDirIterator>
-#include <QMessageBox>
 #include <QQuickStyle>
 #include <QFontDatabase>
-#include <QFont>
 #include <QQuickWindow>
-#include <QFileInfo>
 #include <QDir>
-#include <qqml.h>
+#include <QThread>
 // ==== 自定义头文件 ====
 #include "backend.h"
 #include "settings.h"
 
-// ==== 日志处理函数 ====
-static void fileMessageHandler(QtMsgType type, const QMessageLogContext& ctx, const QString& msg) {
-	static QFile file("logs/app.log");
-	static QMutex mtx;
-	static bool inited = [] {
-		QDir().mkpath("logs");
-		file.open(QIODevice::Append | QIODevice::Text);
-		return true;
-		}();
+// ==== 日志处理函数组 ====
+static std::atomic_bool g_enableLogging{ true };
 
-	Q_UNUSED(inited);
-	QString level =
-		type == QtDebugMsg ? "DBG" : type == QtInfoMsg ? "INF" :
-		type == QtWarningMsg ? "WRN" : type == QtCriticalMsg ? "CRT" : "FTL";
-
-	QMutexLocker lock(&mtx);
-	QTextStream out(&file);
-	out << QDateTime::currentDateTime().toString(Qt::ISODateWithMs)
-		<< " [" << (quintptr)QThread::currentThreadId() << "] "
-		<< level << " " << msg << '\n';
-	out.flush();
+static void setLoggingEnabled(bool enabled) {
+    g_enableLogging.store(enabled, std::memory_order_relaxed);
 }
+
+static void fileMessageHandler(QtMsgType type, const QMessageLogContext& ctx, const QString& msg) {
+    if (!g_enableLogging.load(std::memory_order_relaxed)) {
+        return; // 直接丢弃日志
+    }
+
+    static QFile file("logs/app.log");
+    static QMutex mtx;
+    static bool inited = [] {
+        QDir().mkpath("logs");
+        if (!file.open(QIODevice::Append | QIODevice::Text)) {
+            fprintf(stderr, "Failed to open log file: %s\n", qPrintable(file.errorString()));
+        }
+        return true;
+        }();
+    Q_UNUSED(inited);
+
+    const char* level =
+        type == QtDebugMsg ? "DBG" : type == QtInfoMsg ? "INF" :
+        type == QtWarningMsg ? "WRN" :  type == QtCriticalMsg ? "ERR" : "FTL";
+
+
+    QMutexLocker lock(&mtx);
+    QTextStream out(&file);
+    out << QDateTime::currentDateTime().toString(Qt::ISODateWithMs)
+        << " [" << quintptr(QThread::currentThreadId()) << "] "
+        << level << " " << msg;
+    if (ctx.category && *ctx.category)
+        out << " (" << ctx.category << ")";
+    out << '\n';
+    out.flush();
+}
+
 
 // ==== 主函数 ====
 int main(int argc, char* argv[]) {
 
 	// 初始化
+    setLoggingEnabled(true);                            // 是否启用日志输出
 	qInstallMessageHandler(fileMessageHandler);         // 接管日志系统
 	QQuickStyle::setStyle("Material");					// 设置默认样式
 	QApplication app(argc, argv);                       // 创建应用程序对象
