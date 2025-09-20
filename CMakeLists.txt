@@ -24,7 +24,7 @@ find_package(Qt6 6.2 REQUIRED
         Widgets
         Qml
         Network
-        QuickLayouts
+        #QuickLayouts
         QuickControls2
         Multimedia
         QuickEffects
@@ -48,6 +48,13 @@ endif()
 
 # 导入编译目标
 qt_add_executable(${PROJECT_NAME} ${APP_SOURCES})
+
+# 编译完成后自动拷贝 assets 文件夹到可执行文件所在目录
+add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_directory
+            ${CMAKE_SOURCE_DIR}/assets
+            $<TARGET_FILE_DIR:${PROJECT_NAME}>/assets
+)
 
 # Debug 下添加Debug预处理宏以兼容调试功能
 add_compile_options(
@@ -93,8 +100,11 @@ qt_add_resources(${PROJECT_NAME} "respkg"
         res/icon/window/max.svg
         res/icon/window/min.svg
         res/icon/window/close.svg
-        # WAV
-        res/audio/startup.ogg
+        # OGG
+        res/audio/startupA.ogg
+        res/audio/startupB.ogg
+        res/audio/startupC.ogg
+        res/audio/startupD.ogg
         # QML
         res/qml/pages/StartPage.qml
         res/qml/pages/SettingsPage.qml
@@ -119,7 +129,7 @@ target_link_libraries(${PROJECT_NAME}
         Qt6::Widgets
         Qt6::Qml
         Qt6::Network
-        Qt6::QuickLayouts
+        #Qt6::QuickLayouts
         Qt6::QuickControls2
         Qt6::Multimedia
         Qt6::QuickEffects
