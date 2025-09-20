@@ -31,18 +31,18 @@ QtObject {
     // Drak 配色
     readonly property var darkScheme: ({
         // Menu 
-        menuGradTop: "#0D47A1",
-        menuGradMid: "#4A148C",
-        menuGradBot: "#B71C1C",
-        menuTextColor: "#E0E0E0",
+        menuGradTop: "#B2D3FF",
+        menuGradMid: "#47009E",
+        menuGradBot: "#AE0000",
+        menuTextColor: "#002F8D",
         // Mask
         hoverMask: Qt.rgba(1,1,1,0.12),
         // Gradient - 注意！颜色数量必须和 Light 相等
-        gradientColors: ["#0D47A1", "#7B1FA2", "#F44336", "#AFB42B"],
+        gradientColors: ["#0D47A1", "#6A0097", "#950A00", "#919600"],
         // Text
-        defaultText: "#69c3ff",
+        defaultText: "#b7e1fd",
         // Background
-        backgroundColor: "#313131"
+        backgroundColor: "#AAAAAA"
     })
 
     // 当前激活方案

@@ -12,6 +12,8 @@ Item {
     property bool squareCorners: false                  // 全屏/最大化时请置 true
     property color frameColor: "white"
     property bool shadowVisibleWhenMaximized: false
+    // 新增：动画开关（由外部 Main.qml 透传）
+    property bool enableAnim: true
 
     // 会被圆角裁切的内容槽
     default property alias content: frame.data
@@ -57,11 +59,11 @@ Item {
         cache: true
         asynchronous: false
 
-        // 过渡期间直接隐藏阴影
-        visible: opacity > 0.001 && !root.squareCorners
+        // 最大化/全屏时立即隐藏阴影，避免任何淡出过渡
+        visible: !root.squareCorners && root.wantShadow
         opacity: root.wantShadow ? 1 : 0
         Behavior on opacity { 
-            enabled: !root.squareCorners  // 全屏时禁用渐变
+            enabled: root.enableAnim && !root.squareCorners  // 关闭动画或全屏时禁用渐变
             NumberAnimation { 
                 duration: 120
                 easing.type: Easing.OutCubic 
@@ -78,7 +80,7 @@ Item {
         // 全屏/最大化且不展示阴影时，立即去掉内容边距
         anchors.margins: root.squareCorners && !root.shadowVisibleWhenMaximized ? 0 : root._safeInset
         Behavior on anchors.margins {
-            enabled: !root.squareCorners  // 全屏时禁用过渡动画
+            enabled: root.enableAnim && !root.squareCorners  // 关闭动画或全屏时禁用过渡
             NumberAnimation { 
                 duration: 120
                 easing.type: Easing.OutCubic 

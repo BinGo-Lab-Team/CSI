@@ -19,23 +19,40 @@ ApplicationWindow {
 
     // 构造主题颜色属性
     Theme { 
-        id: theme 
+        id: theme
         parentWindow: win
     }
 
-    // 测试INI配置读写 - 20250917/PASS
-    /*QtObject { Component.onCompleted: { Settings.write("ttt", "OKI"); console.log("TEST/ttt:", Settings.read("ttt")); } }*/
-
-    // 测试配色方案更改 - 20250917/PASS
-    /*Timer {
-        id: themeToggleTimer
-        interval: 1000
-        repeat: true
-        running: true
-        onTriggered: {
-            win.Material.theme = (win.Material.theme === Material.Dark) ? Material.Light : Material.Dark;
+    // 读取主题配置
+    QtObject { 
+        Component.onCompleted:{
+            switch (Settings.init("Theme", "system")) {
+                case "system":
+                    win.Material.theme = Material.System; break;
+                case "dark":
+                    win.Material.theme = Material.Dark; break;
+                case "light":
+                    win.Material.theme = Material.Light; break;
+                default:
+                    win.Material.theme = Material.System; break;
+            }    
         }
-    }*/
+    }
+    // 监听设置变化：General/Theme
+    Connections {
+        target: Settings
+        function onSettingChanged(section, key, value) {
+            if (section === "General" && key === "Theme") {
+                console.log("主题设置改变");
+                switch (value.toString()) {
+                    case "system": win.Material.theme = Material.System; break;
+                    case "dark":   win.Material.theme = Material.Dark; break;
+                    case "light":  win.Material.theme = Material.Light; break;
+                    default:       win.Material.theme = Material.System; break;
+                }
+            }
+        }
+    }
 
     // 监听可见性变化
     Connections {
@@ -53,9 +70,13 @@ ApplicationWindow {
                     win._freezeRecord = true; // 避免过渡阶段覆盖 lastNormalGeom
                     if (win._preMinVis === Window.Maximized) {
                         // 目标是回到最大化：先保持冻结，等待真正进入 Maximized 后再解冻
+                        // 目标是回到最大化：不再硬切换，改为自定义几何动画，结束后再设置 Maximized
                         win._pendingUnfreeze = true;
                         Qt.callLater(() => {
                             win.showMaximized();
+                            const g = Qt.rect(0, 0, Screen.desktopAvailableWidth, Screen.desktopAvailableHeight);
+                            win._animTarget = "max";
+                            runGeom(g.x, g.y, g.width, g.height);
                         });
                     } else {
                         // 普通窗口：恢复到保存的几何，并尽快解冻
@@ -104,6 +125,9 @@ ApplicationWindow {
     // 延迟解冻标记：用于“从最小化恢复到最大化”的两段过渡，等进入 Maximized 后再解冻
     property bool _pendingUnfreeze: false
 
+    // 动画总开关（启动时读取/初始化）
+    property bool enableAnim: Settings.init_bool("EnableAnimation", true)
+
     // 启动动画参数
     readonly property int startupOffsetY: 20            // 稍微增加初始上偏移
     readonly property real startupInitialAngle: -3      // 初始负角度（度）
@@ -141,8 +165,8 @@ ApplicationWindow {
     onHeightChanged: _maybeRecordIfNormal()
 
     readonly property int durFast: 80
-    readonly property int durMed: 260 // 动画时长
-    readonly property int debounceMs: 300 // 防抖时间应大于动画时长
+    readonly property int durMed: 260       // 动画时长
+    readonly property int debounceMs: 300   // 防抖时间应大于动画时长
     property double _lastToggleTS: 0
 
     // 动画目标值
@@ -156,11 +180,11 @@ ApplicationWindow {
     // 几何和透明度动画
     ParallelAnimation {
         id: geomAnim
-        NumberAnimation { target: win; property: "x";      duration: win.durMed; easing.type: Easing.OutCubic; to: win._toX }
-        NumberAnimation { target: win; property: "y";      duration: win.durMed; easing.type: Easing.OutCubic; to: win._toY }
-        NumberAnimation { target: win; property: "width";  duration: win.durMed; easing.type: Easing.OutCubic; to: win._toW }
-        NumberAnimation { target: win; property: "height"; duration: win.durMed; easing.type: Easing.OutCubic; to: win._toH }
-        NumberAnimation { target: win; property: "opacity"; duration: win.durMed; easing.type: Easing.OutCubic; to: win._animTarget === "min" || win._animTarget === "close" ? 0 : 1 }
+        NumberAnimation { target: win; property: "x";      duration: win.enableAnim ? win.durMed : 0; easing.type: Easing.OutCubic; to: win._toX }
+        NumberAnimation { target: win; property: "y";      duration: win.enableAnim ? win.durMed : 0; easing.type: Easing.OutCubic; to: win._toY }
+        NumberAnimation { target: win; property: "width";  duration: win.enableAnim ? win.durMed : 0; easing.type: Easing.OutCubic; to: win._toW }
+        NumberAnimation { target: win; property: "height"; duration: win.enableAnim ? win.durMed : 0; easing.type: Easing.OutCubic; to: win._toH }
+        NumberAnimation { target: win; property: "opacity"; duration: win.enableAnim ? win.durMed : 0; easing.type: Easing.OutCubic; to: win._animTarget === "min" || win._animTarget === "close" ? 0 : 1 }
         onStopped: {
             if (win._animTarget === "max") {
                 win.visibility = Window.Maximized;
@@ -171,6 +195,18 @@ ApplicationWindow {
                 });
             } else if (win._animTarget === "close") {
                 win.close();
+            } else if (win._animTarget === "normal") {
+                // 结束自定义还原动画后再切换到 Windowed，避免 WM 抢占几何
+                // 切到 Windowed 后，立刻把我们记录的 normal 几何回写一遍，覆盖 WM 可能回灌的缓存值
+                win.visibility = Window.Windowed;
+                Qt.callLater(() => {
+                    win.x = win.lastNormalGeom.x;
+                    win.y = win.lastNormalGeom.y;
+                    win.width = win.lastNormalGeom.width;
+                    win.height = win.lastNormalGeom.height;
+                    if (win._freezeRecord)
+                        win._freezeRecord = false;
+                });
             }
             win._animTarget = "";
         }
@@ -211,6 +247,7 @@ ApplicationWindow {
         if (!win.isMaximized) return;
         _resetStartupFX();
         // 冻结自动记录，避免临时设置到屏幕大几何时覆盖 lastNormalGeom
+        // 在动画开始前冻结记录，避免过渡阶段覆盖 lastNormalGeom
         _freezeRecord = true;
         win.showNormal(); // 必须先切回 Normal，才能自由控制几何
         
@@ -218,8 +255,10 @@ ApplicationWindow {
         const g = Qt.rect(0, 0, Screen.desktopAvailableWidth, Screen.desktopAvailableHeight);
         win.x = g.x; win.y = g.y; win.width = g.width; win.height = g.height;
         Qt.callLater(function() {
-            win._animTarget = "normal";
-            runGeom(lastNormalGeom.x, lastNormalGeom.y, lastNormalGeom.width, lastNormalGeom.height);
+        // 不调用 showNormal()，避免 WM 回灌其缓存的 normal 几何
+        // 直接做几何动画，动画结束后在 onStopped 中切换到 Windowed 并回写 lastNormalGeom
+        win._animTarget = "normal";
+        runGeom(lastNormalGeom.x, lastNormalGeom.y, lastNormalGeom.width, lastNormalGeom.height);
             // 动画已开始，解除冻结，避免中间写入
             Qt.callLater(function(){ _freezeRecord = false; });
         });
@@ -271,22 +310,31 @@ ApplicationWindow {
     readonly property int cornerHit: Math.round(10 * dpr)
 
     // 播放启动音乐
-    property bool enableStartupSound: true
+    QtObject { 
+        id: startupSoundPath
+        // 内置音乐路径
+        property string path
+        readonly property string startupSound_A: "qrc:/res/audio/startupA.ogg"
+        readonly property string startupSound_B: "qrc:/res/audio/startupB.ogg"
+        readonly property string startupSound_C: "qrc:/res/audio/startupC.ogg"
+        readonly property string startupSound_D: "qrc:/res/audio/startupD.ogg"
+        path: Settings.init("StartupSoundPath", startupSound_D)
+    }
     MediaPlayer {
         id: startupPlayer
-        source: "qrc:/res/audio/startup.ogg"
+        source: startupSoundPath.path
         audioOutput: AudioOutput {
             id: out
             volume: 1.0
             muted: false
         }
         Component.onCompleted: Qt.callLater(() => {
-            if (win.enableStartupSound)
+            // 判断是否播放启动音乐
+            if (Settings.init_bool("EnableStartupSound", true))
                 play();
         })
         onErrorOccurred: (error, errorString) => {
             console.warn("[MediaPlayer] error:", error, errorString);
-            win.enableStartupSound = false;
         }
     }
 
@@ -302,7 +350,7 @@ ApplicationWindow {
                 property: "opacity"
                 from: 0
                 to: 1.0
-                duration: win.startupFadeDuration
+                duration: win.enableAnim ? win.startupFadeDuration : 0
                 easing.type: Easing.OutCubic
             }
         }
@@ -314,7 +362,7 @@ ApplicationWindow {
                 property: "xScale"
                 from: win.startupInitialScale
                 to: 1.0
-                duration: win.startupFirstStageDuration
+                duration: win.enableAnim ? win.startupFirstStageDuration : 0
                 easing.type: Easing.OutBack
                 easing.overshoot: win.startupBackOvershoot * 0.3  // 第一阶段回弹较小
             }
@@ -323,7 +371,7 @@ ApplicationWindow {
                 property: "xScale"
                 from: 1.0
                 to: 1.0
-                duration: win.startupSecondStageDuration
+                duration: win.enableAnim ? win.startupSecondStageDuration : 0
                 easing.type: Easing.OutBack
                 easing.overshoot: win.startupBackOvershoot
             }
@@ -336,7 +384,7 @@ ApplicationWindow {
                 property: "y"
                 from: -win.startupOffsetY
                 to: 0
-                duration: win.startupFirstStageDuration + win.startupSecondStageDuration
+                duration: win.enableAnim ? (win.startupFirstStageDuration + win.startupSecondStageDuration) : 0
                 easing.type: Easing.OutBack
                 easing.overshoot: win.startupBackOvershoot
             }
@@ -349,7 +397,7 @@ ApplicationWindow {
                 property: "angle"
                 from: win.startupInitialAngle
                 to: 0
-                duration: win.startupFirstStageDuration
+                duration: win.enableAnim ? win.startupFirstStageDuration : 0
                 easing.type: Easing.OutBack
                 easing.overshoot: win.startupBackOvershoot * 0.3  // 第一阶段回弹较小
             }
@@ -365,7 +413,18 @@ ApplicationWindow {
         }
     }
 
-    Component.onCompleted: startupFX.start()
+    Component.onCompleted: {
+        if (win.enableAnim) {
+            startupFX.start()
+        } else {
+            // 动画关闭时，直接设置到最终状态
+            startupTrans.y = 0
+            startupRot.angle = 0
+            startupScale.xScale = 1.0
+            startupScale.yScale = 1.0
+            shell.opacity = 1.0
+        }
+    }
 
     function tr(id, fallback) {
         var s = qsTrId(id);
@@ -396,10 +455,11 @@ ApplicationWindow {
         anchors.fill: parent                        // 填满父项
         dpr: Screen.devicePixelRatio                // 传入设备像素比
         inset: win.squareCorners ? 0 : win.inset    // 阴影厚度
-        cornerRadius: win.cornerRadius              // 传入圆角半径
+        cornerRadius: win.squareCorners ? 0 : win.cornerRadius // 在最大化或过渡中立即置零，避免过渡动画
         squareCorners: win.squareCorners            // 是否启用圆角
         frameColor: theme.backgroundColor           // 内容框底色
         opacity: 0                                  // 初始不透明度
+        enableAnim: win.enableAnim                  // 传递动画开关到 ShadowFrame
 
         // ==== 动画执行 ====
         transform: [
@@ -445,20 +505,20 @@ ApplicationWindow {
                 property: "xScale"
                 from: 1.0
                 to: win.closeTargetScale
-                duration: win.closeScaleDuration
+                duration: win.enableAnim ? win.closeScaleDuration : 0
                 easing.type: Easing.OutQuad
             }
 
             // 不透明度动画
             SequentialAnimation {
                 // 稍微提前开始淡出
-                PauseAnimation { duration: win.closeAnimDelay }
+                PauseAnimation { duration: win.enableAnim ? win.closeAnimDelay : 0 }
                 NumberAnimation {
                     target: shell
                     property: "opacity"
                     from: 1.0
                     to: 0
-                    duration: win.closeFadeDuration
+                    duration: win.enableAnim ? win.closeFadeDuration : 0
                     easing.type: Easing.OutCubic
                 }
             }
@@ -478,27 +538,27 @@ ApplicationWindow {
                     property: "y"
                     from: 0
                     to: -win.minUpOffset
-                    duration: win.minUpDuration
+                    duration: win.enableAnim ? win.minUpDuration : 0
                     easing.type: Easing.OutQuad
                 }
                 NumberAnimation {
                     target: minTrans
                     property: "y"
                     to: win.minDownOffset
-                    duration: win.minDownDuration
+                    duration: win.enableAnim ? win.minDownDuration : 0
                     easing.type: Easing.InCubic  // 使用 InCubic 让下落更快
                 }
             }
 
             // 透明度动画（开始下落时淡出）
             SequentialAnimation {
-                PauseAnimation { duration: win.minUpDuration }
+                PauseAnimation { duration: win.enableAnim ? win.minUpDuration : 0 }
                 NumberAnimation {
                     target: shell
                     property: "opacity"
                     from: 1.0
                     to: 0
-                    duration: win.minFadeDuration
+                    duration: win.enableAnim ? win.minFadeDuration : 0
                     easing.type: Easing.OutCubic
                 }
             }
@@ -650,8 +710,8 @@ ApplicationWindow {
                     z: 0
                     width: (win.currentTab === 0 ? tabStart.width : tabSettings.width)
                     x: (win.currentTab === 0 ? tabStart.x : tabSettings.x)
-                    Behavior on x { NumberAnimation { duration: win.durMed; easing.type: Easing.OutCubic } }
-                    Behavior on width { NumberAnimation { duration: win.durMed; easing.type: Easing.OutCubic } }
+                    Behavior on x { enabled: win.enableAnim; NumberAnimation { duration: win.enableAnim ? win.durMed : 0; easing.type: Easing.OutCubic } }
+                    Behavior on width { enabled: win.enableAnim; NumberAnimation { duration: win.enableAnim ? win.durMed : 0; easing.type: Easing.OutCubic } }
                 }
 
                 ToolButton {
@@ -668,7 +728,8 @@ ApplicationWindow {
                     scale: pressed ? 0.98 : 1.0
                     z: 1
                     Behavior on scale {
-                        NumberAnimation { duration: win.durFast; easing.type: Easing.OutCubic }
+                        enabled: win.enableAnim
+                        NumberAnimation { duration: win.enableAnim ? win.durFast : 0; easing.type: Easing.OutCubic }
                     }
                     background: Rectangle {
                         radius: 8
@@ -736,7 +797,8 @@ ApplicationWindow {
                     scale: pressed ? 0.98 : 1.0
                     z: 1
                     Behavior on scale {
-                        NumberAnimation { duration: win.durFast; easing.type: Easing.OutCubic }
+                        enabled: win.enableAnim
+                        NumberAnimation { duration: win.enableAnim ? win.durFast : 0; easing.type: Easing.OutCubic }
                     }
                     background: Rectangle {
                         radius: 8
@@ -862,6 +924,8 @@ ApplicationWindow {
                     if (win.isMaximized) {
                         // 最大化：取消动画，立即还原到普通窗口几何并开始拖动
                         if (geomAnim.running) geomAnim.stop();
+                        // 在切换到 Normal 之前冻结 lastNormalGeom 的记录，避免被临时几何污染
+                        win._freezeRecord = true;
                         win.showNormal();
                         Qt.callLater(() => {
                             var w = Math.max(win.minW, win.lastNormalGeom.width);
@@ -872,6 +936,8 @@ ApplicationWindow {
                             win.height = h;
                             win.x = Math.round(p.x - offX);
                             win.y = Math.round(p.y - Math.min(offY, titleBar.height));
+                            // 立即解冻，恢复正常记录
+                            Qt.callLater(() => { win._freezeRecord = false; });
                             Qt.callLater(win.startSystemMove);
                         });
                     } else {
