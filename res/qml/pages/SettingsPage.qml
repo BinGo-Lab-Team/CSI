@@ -26,7 +26,7 @@ Item {
         spacing: 16
 
         Label {
-            text: qsTr("这是设置页!")
+            text: qsTr("这是，设置页!")
             font.pixelSize: 22
             Layout.alignment: Qt.AlignHCenter
         }

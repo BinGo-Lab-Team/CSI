@@ -25,7 +25,9 @@ QtObject {
         // Text
         defaultText: "#00436D",
         // Background
-        backgroundColor: "#E5E5E5"
+        backgroundColor: "#A0E5E5E5",
+        // Tooltip
+        tooltipColor: "#464646"
     })
 
     // Drak 配色
@@ -42,7 +44,9 @@ QtObject {
         // Text
         defaultText: "#b7e1fd",
         // Background
-        backgroundColor: "#AAAAAA"
+        backgroundColor: "#A00C0C0C",
+        // Tooltip
+        tooltipColor: "#B8B8B8"
     })
 
     // 当前激活方案
@@ -74,16 +78,22 @@ QtObject {
         ColorAnimation { duration: 400; easing.type: Easing.OutCubic }
     }
     
-    property var gradientColors: scheme.gradientColors  // 流动条配色
-    // 注意：gradientColors是数组，无法直接用ColorAnimation，需要特殊处理
+    // gradientColors是数组，无法直接用ColorAnimation，需要特殊处理
+    property var gradientColors: scheme.gradientColors      // 流动条配色
+
     
-    property color defaultText: scheme.defaultText      // 默认文本颜色
+    property color defaultText: scheme.defaultText          // 默认文本颜色
     Behavior on defaultText {
         ColorAnimation { duration: 400; easing.type: Easing.OutCubic }
     }
     
-    property color backgroundColor: scheme.backgroundColor // 背景颜色
+    property color backgroundColor: scheme.backgroundColor  // 背景颜色
     Behavior on backgroundColor {
+        ColorAnimation { duration: 400; easing.type: Easing.OutCubic }
+    }
+
+    property color tooltipColor: scheme.tooltipColor        // Tooltip颜色
+    Behavior on tooltipColor {
         ColorAnimation { duration: 400; easing.type: Easing.OutCubic }
     }
 }

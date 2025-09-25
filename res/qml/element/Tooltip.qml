@@ -1,6 +1,7 @@
 ﻿// Tooltip.qml - Tooltip组件
 import QtQuick
 import QtQuick.Controls
+import csi
 
 Item {
     id: root
@@ -18,6 +19,11 @@ Item {
 
     // HoverHandler（即使 _host 不是 Control 也能工作）
     HoverHandler { id: hh; target: root._host; acceptedDevices: PointerDevice.Mouse }
+
+    Theme { 
+        id: theme
+        parentWindow: root
+    }
 
     ToolTip {
         id: tip
@@ -40,7 +46,7 @@ Item {
             elide: Text.ElideRight
         }
         background: Rectangle {
-            color: "#333333"
+            color: theme.tooltipColor
             radius: 4
             opacity: 0.92
         }
