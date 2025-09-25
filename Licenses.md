@@ -17,7 +17,7 @@
 
 警告⚠ 本文档内容可能更新，使用者应以获取时的版本为准，变更不会追溯已生效的贡献协议。
 
-最后一次更新：2025年9月21日
+最后一次更新：2025年9月23日
 
 
 
@@ -53,10 +53,12 @@ GPG 公钥：[YanAnghelp.gpg](https://github.com/YanAnghelp.gpg) | GPG 公钥指
 |     [construction.svg](./res/icon/main/construction.svg)     |        是        | F55D1F9185CE2A355589C9FF62DB04101083C665DD4099F7E60D1F0DBEDE4F68 |
 | [construction-black.svg](./res/icon/main/construction-black.svg) |        是        | DBDB5B8B03B38DDE563822C334A5F835FE8043C7438666C00B57E71C82E22C01 |
 | [construction-white.svg](./res/icon/main/construction-white.svg) |        否        | BC15F8D8CAAC980ECE8B7D265A8B9E5D9C1FE1EC8E6E49228FC16D5CB5E89621 |
+|                 [app.ico](./res/rc/app.ico)                  |        是        | 21A48D57D42F47B6552D26EC37158F99ADE359D176A5594BA3FF7B0DC53FA68C |
 |           [close.svg](./res/icon/window/close.svg)           |        是        | D2B8983806E207D854B40D0BD8D2B306F660C4745AD43FA60A32D5CCE70C13AC |
 |             [max.svg](./res/icon/window/max.svg)             |        是        | 31E887193DE719A195DAFB538DD742993B8A42F089391BF6C5B03F1CCF9E21F6 |
 |             [min.svg](./res/icon/window/min.svg)             |        是        | 4C2E0A11D4FC6878F65653DC2D42079834DDF7EBBD6FFC8CF8E0DF9B481BF672 |
 |         [restore.svg](./res/icon/window/restore.svg)         |        是        | 0986B612D093B600AB0F1028957A85CAFB8F6DB7296166CB671E07823C50038E |
+| [ChironGoRoundTC-Medium.ttf](./res/font/ChironGoRoundTC-Medium.ttf) |        否        | E8BCFA7EB19EE4A86B034BA37346B5341355AB8881CD75622E97A7FD57C97E00 |
 
 
 

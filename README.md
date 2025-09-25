@@ -41,6 +41,12 @@ A DEMO project for Qt 6. I don't know what to do. Should I first get the front e
 
 
 
+## 📝 Tips
+
+- 为规范代码，你可以使用项目内的 [.editorconfig](./.editorconfig) 控制缩进及格式，但这是非强制性的。
+
+
+
 ## 🎉 致谢
 
 感谢 Qt 开源社区的贡献，使得本项目能够基于 Qt 6 构建和发布。
