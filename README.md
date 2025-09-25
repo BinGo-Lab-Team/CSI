@@ -1,6 +1,7 @@
 # CSI Project
 
 A DEMO project for Qt 6. I don't know what to do. Should I first get the front end done.
+
 一个针对 Qt 6 的 DEMO 项目，不知道能干什么，先把前端弄好看点。
 
 
@@ -9,7 +10,7 @@ A DEMO project for Qt 6. I don't know what to do. Should I first get the front e
 
 使用本项目，即代表您同意以下条款：
 
-- 本项目源码使用 [AGPL v3.0](./LICENSE) 开源协议，需在遵守此协议的情况下 **使用** | **修改** | **分发** 本项目。
+- 本项目源码遵循 [GPL v3.0](./LICENSE) 开源协议，需在遵守此协议的情况下 **使用** | **修改** | **分发** 本项目。
 
 - 本项目部分设计创作内容遵循 [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/) 协议或其他指定协议，详情查看 [**Licenses**](./Licenses.md)。
 
@@ -22,6 +23,7 @@ A DEMO project for Qt 6. I don't know what to do. Should I first get the front e
 ## ✨ 推荐方案
 
 本项目基于 **Qt 6.9.2** 以及 **C++ 20** 构建。建议使用 **Qt 6.8** 及以上版本。
+
 推荐使用 **Visual Studio 2022** ，**Qt Creator** 或 **CLion 2025** 作为 IDE。
 
 
@@ -29,6 +31,7 @@ A DEMO project for Qt 6. I don't know what to do. Should I first get the front e
 ## 🔗 贡献与支持
 
 本项目十分欢迎提交 **问题(Issues)** 与 **合并请求(Pull requests)**，好的想法务必提交！
+
 顺带一提，要是你真的闲着没事也可以找我聊天。
 
 联系我：Yan (<BINGO-COMPUTER@outlook.com>).
@@ -44,6 +47,7 @@ A DEMO project for Qt 6. I don't know what to do. Should I first get the front e
 ## 📝 Tips
 
 - 为规范代码，你可以使用项目内的 [.editorconfig](./.editorconfig) 控制缩进及格式，但这是非强制性的。
+- 如果有好的想法，或发现任何BUG，请提交 **Issues**，拜托了！
 
 
 

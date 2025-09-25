@@ -1,6 +1,6 @@
 # Licenses 授权信息
 
-本项目默认采用 [AGPL v3.0](./LICENSE) 协议，此文件内未列出的资源，均受该协议约束。  
+本项目默认采用 [GPL v3.0](./LICENSE) 协议，此文件内未列出的资源，均受该协议约束。  
 
 我们推荐将所有提交进行GPG签名防止篡改，进行签名可提高置信度。
 
@@ -9,7 +9,7 @@
 
 
 - **任何人**向本项目提交**任何形式的贡献**，请注明版权所有者使用的**版权协议**以及**署名信息**，我们将根据版权协议来决定贡献内容的用途。
-- 若提交者未注明版权协议，对于**代码**默认遵从 [AGPL v3.0](./LICENSE) 协议，**设计创意**默认遵从 [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/) 协议。
+- 若提交者未注明版权协议，对于**代码**默认遵从 [GPL v3.0](./LICENSE) 协议，**设计创意**默认遵从 [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/) 协议。
 - 若提交者未注明版权所有者以及署名，默认署名为提交者的 *GitHub Account*。
 - 版权信息和署名可由提交者在第一次提交后的**三天内**更改，超时后版权协议将**永久锁定**，署名信息可凭借任何有效证据向管理员申诉修改。
 - 对于**他人成果**或**他人成果再修改**的提交，请注明版权所有者的**版权协议**及**署名**并遵循他人的版权协议，**禁止**冒用他人成果提交，违者一切后果自行承担。
@@ -17,7 +17,7 @@
 
 警告⚠ 本文档内容可能更新，使用者应以获取时的版本为准，变更不会追溯已生效的贡献协议。
 
-最后一次更新：2025年9月23日
+最后一次更新：UTC+8:00 | 2025/09/25
 
 
 
@@ -95,7 +95,7 @@ GPG 公钥：[YanAnghelp.gpg](https://github.com/YanAnghelp.gpg) | GPG 公钥指
 - [GNU General Public License (GPL) v3](https://www.gnu.org/licenses/gpl-3.0.html)
 - [GNU Lesser General Public License (LGPL) v3](https://www.gnu.org/licenses/lgpl-3.0.html)
 
-本项目二进制包使用的是 **Qt 6 开源版**，遵循其相关开源许可证条款。
+本项目二进制包使用的是 **Qt 6 开源版**，遵循 [**LGPL v3**](https://www.gnu.org/licenses/lgpl-3.0.html) 协议。
 
 ### 使用者提示
 
