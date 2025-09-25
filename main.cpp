@@ -51,7 +51,6 @@ static void fileMessageHandler(QtMsgType type, const QMessageLogContext& ctx, co
     out.flush();
 }
 
-
 // ==== 主函数 ====
 int main(int argc, char* argv[]) {
 
@@ -62,15 +61,18 @@ int main(int argc, char* argv[]) {
 	QApplication app(argc, argv);                       // 创建应用程序对象
 
 	// 加载字体
-	int id = QFontDatabase::addApplicationFont(":/res/font/AiDianFengYaHei.ttf");
+	int id = QFontDatabase::addApplicationFont(":/res/font/ChironGoRoundTC-Medium.ttf");
 	if (id != -1) {
 		QString family = QFontDatabase::applicationFontFamilies(id).at(0);
 		QFont font(family);
 		font.setPixelSize(14);  // 默认字号
 		app.setFont(font);      // 设置为全局字体
-	}
-
-	app.setWindowIcon(QIcon(":/res/icon/main/construction.svg"));			// 设置程序图标
+    } 
+	else {
+        qWarning() << "字体加载失败！";
+    }
+	
+	app.setWindowIcon(QIcon(":/res/icon/main/construction.svg"));	        // 设置程序图标
 	QQmlApplicationEngine engine;											// 构造 engine 对象
 	if (!Settings::instance()) Settings* settings = new Settings(&engine);	// 构造 .ini 配置文件操作函数
 	engine.loadFromModule("csi", "Main");									// 加载 Main.qml 前端入口

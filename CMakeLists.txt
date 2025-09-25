@@ -24,7 +24,6 @@ find_package(Qt6 6.2 REQUIRED
         Widgets
         Qml
         Network
-        #QuickLayouts
         QuickControls2
         Multimedia
         QuickEffects
@@ -82,6 +81,8 @@ qt_add_qml_module(${PROJECT_NAME}
         res/qml/element/ShadowFrame.qml
         res/qml/element/Theme.qml
         res/qml/element/Tooltip.qml
+        res/qml/element/ThemeText.qml
+        res/qml/element/ThemeBorderButton.qml
     SOURCES 
         includes/backend.h src/backend.cpp
         includes/settings.h src/settings.cpp
@@ -109,7 +110,7 @@ qt_add_resources(${PROJECT_NAME} "respkg"
         res/qml/pages/StartPage.qml
         res/qml/pages/SettingsPage.qml
         # TTF
-        res/font/AiDianFengYaHei.ttf
+        res/font/ChironGoRoundTC-Medium.ttf
         # PNG
         res/image/shadow@q0.png
 )
@@ -129,7 +130,6 @@ target_link_libraries(${PROJECT_NAME}
         Qt6::Widgets
         Qt6::Qml
         Qt6::Network
-        #Qt6::QuickLayouts
         Qt6::QuickControls2
         Qt6::Multimedia
         Qt6::QuickEffects

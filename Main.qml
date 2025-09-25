@@ -5,6 +5,7 @@ import QtQuick.Controls
 import QtQuick.Layouts
 import QtMultimedia
 import QtQuick.Controls.Material
+import csi
 
 // ==== 程序窗口 ====
 ApplicationWindow {
@@ -242,7 +243,7 @@ ApplicationWindow {
         runGeom(g.x, g.y, g.width, g.height);
     }
 
-    // 仅用于"最大化 -> 还原"的平滑过渡
+    // 最大化 -> 还原 的平滑过渡
     function restoreSmooth() {
         if (!win.isMaximized) return;
         _resetStartupFX();
@@ -451,15 +452,125 @@ ApplicationWindow {
 
     // ==== 窗口 ====
     ShadowFrame {
-        id: shell                                   // 组件ID
-        anchors.fill: parent                        // 填满父项
-        dpr: Screen.devicePixelRatio                // 传入设备像素比
-        inset: win.squareCorners ? 0 : win.inset    // 阴影厚度
-        cornerRadius: win.squareCorners ? 0 : win.cornerRadius // 在最大化或过渡中立即置零，避免过渡动画
-        squareCorners: win.squareCorners            // 是否启用圆角
-        frameColor: theme.backgroundColor           // 内容框底色
-        opacity: 0                                  // 初始不透明度
-        enableAnim: win.enableAnim                  // 传递动画开关到 ShadowFrame
+        id: shell                                               // 组件ID
+        anchors.fill: parent                                    // 填满父项
+        dpr: Screen.devicePixelRatio                            // 传入设备像素比
+        inset: win.squareCorners ? 0 : win.inset                // 阴影厚度
+        cornerRadius: win.squareCorners ? 0 : win.cornerRadius  // 在最大化或过渡中立即置零，避免过渡动画
+        squareCorners: win.squareCorners                        // 是否启用圆角
+        frameColor: theme.backgroundColor                       // 内容框底色
+        opacity: 0                                              // 初始不透明度
+        enableAnim: win.enableAnim                              // 传递动画开关到 ShadowFrame
+
+        // 全窗口流动背景
+        Canvas {
+            id: flowFX
+            anchors.fill: parent
+            renderTarget: Canvas.Image
+            renderStrategy: Canvas.Threaded
+
+            property real bandWidth: width * 30 // 颜色密度，越大越稀疏
+            property real pxPerSecond: 60       // 流动速度，越小越慢
+            property real dpr: Screen.devicePixelRatio
+
+            // 累计进度（秒），代替绝对时间，支持在拉伸时暂停
+            property real progressSec: 0
+            property real _lastTick: 0
+
+            function _nowSec() { return Date.now() / 1000.0; }
+
+            Timer {
+                id: raf
+                interval: 50
+                repeat: true
+                running: win.active && (win.visibility === Window.Windowed || win.visibility === Window.AutomaticVisibility || win.visibility === Window.Maximized)  // 仅活动且可见时运行
+                onTriggered: {
+                    const now = flowFX._nowSec();
+                    let dt = now - flowFX._lastTick;
+                    flowFX._lastTick = now;
+                    // 在拉伸过程中不推进进度；恢复时避免一次性跳动，限制最大步长
+                    if (!win.isResizing) {
+                        dt = Math.max(0, Math.min(dt, 0.08)); // 限制到 ~80ms
+                        if (dt > 0) {
+                            flowFX.progressSec += dt;
+                            flowFX.requestPaint();
+                        }
+                    } else {
+                        // 拉伸时不重绘，降低 CPU
+                    }
+                }
+            }
+
+            Component.onCompleted: {
+                _lastTick = _nowSec();
+                requestPaint();
+                // 由 running 绑定控制启动/暂停，避免打破绑定导致常驻运行
+            }
+
+            onVisibleChanged: {
+                // 重置节拍，避免可见性变化带来的大步长
+                flowFX._lastTick = flowFX._nowSec();
+                requestPaint();
+            }
+            onWidthChanged: requestPaint()
+            onHeightChanged: requestPaint()
+            onDprChanged: requestPaint()
+            Connections {
+                target: win
+                function onVisibilityChanged() {
+                    flowFX._lastTick = flowFX._nowSec();
+                    flowFX.requestPaint();
+                }
+            }
+
+            function colors() {
+                return (theme.gradientColors && theme.gradientColors.length > 0) ? theme.gradientColors : [theme.menuGradTop, theme.menuGradMid, theme.menuGradBot];
+            }
+
+            onPaint: {
+                const ctx = getContext("2d");
+                const dprNow = flowFX.dpr;
+                ctx.resetTransform();
+                ctx.scale(dprNow, dprNow);
+
+                const w = width / dprNow;
+                const h = height / dprNow;
+                ctx.clearRect(0, 0, w, h);
+
+                const cols = colors().slice();
+                if (cols.length > 0 && cols[0] !== cols[cols.length - 1])
+                    cols.push(cols[0]);
+
+                const bw = Math.max(1, bandWidth);
+                const elapsed = progressSec; // 使用累计进度，避免暂停期间跳变
+                const offsetPx = (elapsed * pxPerSecond) % bw;
+
+                let startX = -offsetPx - bw;
+                while (startX < w + bw) {
+                    const xi = Math.round(startX);
+                    const g = ctx.createLinearGradient(xi, 0, xi + bw, 0);
+                    const n = cols.length;
+                    for (let i = 0; i < n; ++i) {
+                        const t = (n <= 1) ? 0.5 : i / (n - 1);
+                        g.addColorStop(t, cols[i]);
+                    }
+                    ctx.fillStyle = g;
+                    ctx.fillRect(xi - 1, 0, bw + 2, h);
+                    startX += bw;
+                }
+            }
+        }
+
+        // 内容区白色蒙版（80% 不透明），用于区分标题栏与内容区
+        Rectangle {
+            id: contentMask
+            anchors.left: parent.left
+            anchors.right: parent.right
+            anchors.top: titleBar.bottom
+            anchors.bottom: parent.bottom
+            color: theme.backgroundColor
+            z: 1
+        }
 
         // ==== 动画执行 ====
         transform: [
@@ -582,102 +693,7 @@ ApplicationWindow {
             color: "transparent"
             z: 3
 
-            // 流动标题栏背景
-            Canvas {
-                id: flowFX
-                anchors.fill: parent
-                renderTarget: Canvas.FramebufferObject
-                renderStrategy: Canvas.Immediate
-
-                property real bandWidth: width
-                property real pxPerSecond: 120
-                property real dpr: Screen.devicePixelRatio
-
-                // 累计进度（秒），代替绝对时间，支持在拉伸时暂停
-                property real progressSec: 0
-                property real _lastTick: 0
-
-                function _nowSec() { return Date.now() / 1000.0; }
-
-                Timer {
-                    id: raf
-                    interval: 33
-                    repeat: true
-                    running: win.visibility !== Window.Hidden  // 只在窗口处于后台时暂停
-                    onTriggered: {
-                        const now = flowFX._nowSec();
-                        let dt = now - flowFX._lastTick;
-                        flowFX._lastTick = now;
-                        // 在拉伸过程中不推进进度；恢复时避免一次性跳动，限制最大步长
-                        if (!win.isResizing) {
-                            dt = Math.max(0, Math.min(dt, 0.08)); // 限制到 ~80ms
-                            flowFX.progressSec += dt;
-                        }
-                        flowFX.requestPaint();
-                    }
-                }
-
-                Component.onCompleted: {
-                    _lastTick = _nowSec();
-                    requestPaint();
-                    raf.start();
-                }
-
-                onVisibleChanged: {
-                    // 重置节拍，避免可见性变化带来的大步长
-                    flowFX._lastTick = flowFX._nowSec();
-                    requestPaint();
-                }
-                onWidthChanged: requestPaint()
-                onHeightChanged: requestPaint()
-                onDprChanged: requestPaint()
-                Connections {
-                    target: win
-                    function onVisibilityChanged() {
-                        flowFX._lastTick = flowFX._nowSec();
-                        flowFX.requestPaint();
-                    }
-                }
-
-                function colors() {
-                    return (theme.gradientColors && theme.gradientColors.length > 0) ? theme.gradientColors : [theme.menuGradTop, theme.menuGradMid, theme.menuGradBot];
-                }
-
-                onPaint: {
-                    const ctx = getContext("2d");
-                    const dprNow = flowFX.dpr;
-                    ctx.resetTransform();
-                    ctx.scale(dprNow, dprNow);
-
-                    const w = width / dprNow;
-                    const h = height / dprNow;
-                    ctx.clearRect(0, 0, w, h);
-
-                    const cols = colors().slice();
-                    if (cols.length > 0 && cols[0] !== cols[cols.length - 1])
-                        cols.push(cols[0]);
-
-                    const bw = Math.max(1, bandWidth);
-                    const elapsed = progressSec; // 使用累计进度，避免暂停期间跳变
-                    const offsetPx = (elapsed * pxPerSecond) % bw;
-
-                    let startX = -offsetPx - bw;
-                    while (startX < w + bw) {
-                        const xi = Math.round(startX);
-                        const g = ctx.createLinearGradient(xi, 0, xi + bw, 0);
-                        const n = cols.length;
-                        for (let i = 0; i < n; ++i) {
-                            const t = (n <= 1) ? 0.5 : i / (n - 1);
-                            g.addColorStop(t, cols[i]);
-                        }
-                        ctx.fillStyle = g;
-                        ctx.fillRect(xi - 1, 0, bw + 2, h);
-                        startX += bw;
-                    }
-                }
-            }
-
-            // —— 左侧标题 —__
+            // —— 左侧标题 ——
             Label {
                 id: titleText
                 text: win.tr("csi.title", "CSI")
@@ -690,7 +706,7 @@ ApplicationWindow {
                 z: 1
             }
 
-            // —— 中部导航 —__
+            // —— 中部导航 ——
             Item {
                 id: navWrap
                 anchors.verticalCenter: parent.verticalCenter
@@ -759,7 +775,7 @@ ApplicationWindow {
                             horizontalAlignment: Text.AlignHCenter
                             verticalAlignment: Text.AlignVCenter
                         }
-                        // 仅在交集区域显示的高亮文字
+                        // 仅在交集区域显示的高亮文字（使用 ThemeText，颜色来自 flowFX）
                         Item {
                             id: startClip
                             anchors.top: parent.top
@@ -768,14 +784,13 @@ ApplicationWindow {
                             width: startContent.hiWidth
                             clip: true
                             visible: width > 0
-                            // 使用与底层相同排版，但整体左移到与父对齐，由 clip 截断
-                            Label {
+                            ThemeText {
                                 x: -startClip.x
                                 width: startContent.width
                                 height: startContent.height
                                 text: tabStart.text
-                                font.pixelSize: 15
-                                color: theme.menuGradTop
+                                fontPixelSize: 15
+                                flowSource: flowFX
                                 horizontalAlignment: Text.AlignHCenter
                                 verticalAlignment: Text.AlignVCenter
                             }
@@ -828,7 +843,7 @@ ApplicationWindow {
                             horizontalAlignment: Text.AlignHCenter
                             verticalAlignment: Text.AlignVCenter
                         }
-                        // 仅在交集区域显示的高亮文字
+                        // 仅在交集区域显示的高亮文字（使用 ThemeText，颜色来自 flowFX）
                         Item {
                             id: settingsClip
                             anchors.top: parent.top
@@ -837,13 +852,13 @@ ApplicationWindow {
                             width: settingsContent.hiWidth
                             clip: true
                             visible: width > 0
-                            Label {
+                            ThemeText {
                                 x: -settingsClip.x
                                 width: settingsContent.width
                                 height: settingsContent.height
                                 text: tabSettings.text
-                                font.pixelSize: 15
-                                color: theme.menuGradTop
+                                fontPixelSize: 15
+                                flowSource: flowFX
                                 horizontalAlignment: Text.AlignHCenter
                                 verticalAlignment: Text.AlignVCenter
                             }
@@ -959,12 +974,16 @@ ApplicationWindow {
             anchors.top: titleBar.bottom
             anchors.bottom: parent.bottom
             currentIndex: win.currentTab
+            z: 2
 
             Loader {
                 id: startPage
                 source: "qrc:/res/qml/pages/StartPage.qml"
                 asynchronous: true
                 active: stack.currentIndex === 0
+                onLoaded: {
+                    if (startPage.item) startPage.item.flowSource = flowFX;
+                }
             }
             Loader {
                 id: settingsPage
